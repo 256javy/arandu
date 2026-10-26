@@ -8,7 +8,7 @@ Built during the [Meta Global AI Developer Hackathon](https://cerebralvalley.ai)
 
 | Path | What | Stack |
 |---|---|---|
-| `apps/web` | Kid-facing app + parent/teacher view | React, Vite, TypeScript |
+| `apps/web` | Kid-facing app + parent/teacher view | React 19, Vite, TanStack Router, Tailwind, shadcn/ui |
 | `apps/api` | Agent backend: learner model, quest planner, Socratic guardrails | Java, Spring Boot |
 | `evals` | Open eval harness: simulated child personas score tutors on pedagogy and safety | Python |
 | `infra/modal` | Modal functions: SAM 3.1, eval fan-out, scheduled jobs, open-weights serving | Python |
