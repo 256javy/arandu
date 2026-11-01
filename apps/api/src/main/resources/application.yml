@@ -1,0 +1,27 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: arandu-api
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/arandu}
+    username: ${SPRING_DATASOURCE_USERNAME:arandu}
+    password: ${SPRING_DATASOURCE_PASSWORD:arandu}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+arandu:
+  web-origin: ${WEB_ORIGIN:http://localhost:5173}
+  meta:
+    base-url: ${META_API_BASE_URL:}
+    api-key: ${META_API_KEY:}
+    model: ${META_MODEL:}
