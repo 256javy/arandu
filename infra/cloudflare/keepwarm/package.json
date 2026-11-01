@@ -5,7 +5,8 @@
   "scripts": {
     "deploy": "wrangler deploy",
     "dev": "wrangler dev --test-scheduled",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --test src/*.test.ts"
   },
   "pnpm": {
     "onlyBuiltDependencies": ["esbuild", "workerd"]
