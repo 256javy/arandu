@@ -46,7 +46,20 @@ export const wrongIngredients = (a: Amounts, people: number): Ingredient[] => {
 }
 
 /** After a check confirms the doubled recipe, the 6-people step opens. */
-export const confirmEight = (s: RecipeState): RecipeState => (isScaleOk(s) ? { ...s, eightDone: true } : s)
+export const confirmEight = (s: RecipeState): RecipeState => (!s.eightDone && isScaleOk(s) ? { ...s, eightDone: true } : s)
+
+/**
+ * Opens the 6-people step after `ms` (so the ✓ shows first), reading the latest state when it fires and
+ * confirming only if it is still the right, unconfirmed 8-people recipe. Returns a cancel function.
+ */
+export function scheduleConfirm(latest: () => RecipeState, onChange: (s: RecipeState) => void, ms = 1200): () => void {
+  const t = setTimeout(() => {
+    const s = latest()
+    const next = confirmEight(s)
+    if (next !== s) onChange(next)
+  }, ms)
+  return () => clearTimeout(t)
+}
 
 /** Applies a +1/-1 to one ingredient of the active step, within 0..12. */
 export function bump(s: RecipeState, k: Ingredient, delta: number): RecipeState {
@@ -58,6 +71,14 @@ export function bump(s: RecipeState, k: Ingredient, delta: number): RecipeState 
 
 const list = (a: Amounts) => INGREDIENTS.map((k) => `${a[k]} ${INFO[k].unit[a[k] === 1 ? 0 : 1]}`).join(', ')
 
+/** Live text for screen readers: the same as the visual (amounts and how many people they feed), no verdict. */
+export function describeAmounts(s: RecipeState): string {
+  const people = s.eightDone ? 6 : 8
+  const a = s.eightDone ? s.six : s.eight
+  return `Receta para 4: ${list(BASE)}. Para ${people} personas tenés ${list(a)}; alcanza para ${Math.min(people, feeds(a))} de ${people}.`
+}
+
+/** Full description for the LLM (includes whether it is the same recipe). */
 function describe(s: RecipeState): string {
   let text = `Receta de panqueques para 4 personas: ${list(BASE)}. Para 8 personas puso ${list(s.eight)}`
   const f8 = feeds(s.eight)
@@ -102,6 +123,17 @@ function Recipe({ state, onChange, disabled, feedback, highlight }: ExerciseProp
     setBad([])
     setOk(false)
   }
+  // Latest state for the delayed step confirmation; any edit cancels a pending one.
+  const stateRef = useRef(state)
+  const confirmTimer = useRef<(() => void) | null>(null)
+  useEffect(() => {
+    if (stateRef.current !== state) {
+      confirmTimer.current?.()
+      confirmTimer.current = null
+    }
+    stateRef.current = state
+  }, [state])
+  useEffect(() => () => confirmTimer.current?.(), [])
 
   useEffect(() => {
     if (!feedback) return
@@ -114,8 +146,8 @@ function Recipe({ state, onChange, disabled, feedback, highlight }: ExerciseProp
       })
       // the 8-people recipe is confirmed: after the ✓ shows, open the 6-people step
       if (!state.eightDone && isScaleOk(state)) {
-        const t = setTimeout(() => onChange(confirmEight(state)), 1200)
-        return () => clearTimeout(t)
+        confirmTimer.current?.()
+        confirmTimer.current = scheduleConfirm(() => stateRef.current, onChange)
       }
       return
     }
@@ -196,7 +228,7 @@ function Recipe({ state, onChange, disabled, feedback, highlight }: ExerciseProp
       </div>
 
       <p className="sr-only" aria-live="polite">
-        {describe(state)} Con el teclado: usá Tab hasta los botones Más y Menos de cada ingrediente.
+        {describeAmounts(state)} Con el teclado: usá Tab hasta los botones Más y Menos de cada ingrediente.
       </p>
     </div>
   )

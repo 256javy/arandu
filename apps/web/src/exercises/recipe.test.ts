@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { bump, confirmEight, feeds, recipe, scaled, wrongIngredients, type RecipeState } from './recipe'
+import { describe, expect, it, vi } from 'vitest'
+import { bump, confirmEight, describeAmounts, scheduleConfirm, feeds, recipe, scaled, wrongIngredients, type RecipeState } from './recipe'
 
 const st = (eight: [number, number, number], six: [number, number, number] = [2, 4, 2], sixTouched = false, eightDone = false): RecipeState => ({
   eight: { flour: eight[0], eggs: eight[1], milk: eight[2] },
@@ -59,5 +59,40 @@ describe('recipe', () => {
     const d = recipe.describe(st([4, 6, 4]))
     expect(d).toContain('alcanza solo para 6')
     expect(d).not.toMatch(/%/)
+  })
+})
+
+describe('recipe step confirmation', () => {
+  it('reads the latest state when the timer fires', () => {
+    vi.useFakeTimers()
+    let current = st([4, 8, 4])
+    const onChange = vi.fn()
+    scheduleConfirm(() => current, onChange)
+    current = st([4, 9, 4]) // the kid edited before the timer: no longer right
+    vi.advanceTimersByTime(1200)
+    expect(onChange).not.toHaveBeenCalled()
+    current = st([4, 8, 4])
+    scheduleConfirm(() => current, onChange)
+    vi.advanceTimersByTime(1200)
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ eightDone: true }))
+    vi.useRealTimers()
+  })
+  it('can be cancelled and never re-confirms', () => {
+    vi.useFakeTimers()
+    const onChange = vi.fn()
+    const cancel = scheduleConfirm(() => st([4, 8, 4]), onChange)
+    cancel()
+    vi.advanceTimersByTime(2000)
+    scheduleConfirm(() => st([4, 8, 4], [3, 4, 2], true, true), onChange)
+    vi.advanceTimersByTime(2000)
+    expect(onChange).not.toHaveBeenCalled()
+    vi.useRealTimers()
+  })
+  it('live text shows amounts and how many it feeds, without a verdict', () => {
+    expect(describeAmounts(st([4, 8, 4]))).toBe(
+      'Receta para 4: 2 tazas de harina, 4 huevos, 2 tazas de leche. Para 8 personas tenés 4 tazas de harina, 8 huevos, 4 tazas de leche; alcanza para 8 de 8.',
+    )
+    expect(describeAmounts(st([4, 8, 5]))).not.toMatch(/justo|misma receta|sobra/)
+    expect(describeAmounts(st([4, 8, 4], [3, 6, 3], true, true))).toContain('Para 6 personas tenés 3 tazas de harina')
   })
 })
