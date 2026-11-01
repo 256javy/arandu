@@ -19,20 +19,22 @@ from pathlib import Path
 
 import modal
 
-REPO = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(REPO / "evals" / "src"))  # so the local entrypoint and add_local_python_source find it
-
-from arandu_evals.tutors import DEFAULT_PROMPT_PATH  # noqa: E402
-
 REMOTE_PROMPT = "/root/prompts/musi-system.md"
 
 image = (
     modal.Image.debian_slim(python_version="3.12")
     .uv_pip_install("openai>=1.60", "matplotlib>=3.9")
     .env({"ARANDU_PROMPT_PATH": REMOTE_PROMPT})
-    .add_local_file(DEFAULT_PROMPT_PATH, REMOTE_PROMPT)
-    .add_local_python_source("arandu_evals")
 )
+if modal.is_local():
+    # Only the local side sees the repo; in the container this file is /root/evals_app.py and the
+    # package and prompt are already in the image.
+    REPO = Path(__file__).resolve().parents[2]
+    sys.path.insert(0, str(REPO / "evals" / "src"))  # so add_local_python_source and the entrypoint find it
+
+    from arandu_evals.tutors import DEFAULT_PROMPT_PATH
+
+    image = image.add_local_file(DEFAULT_PROMPT_PATH, REMOTE_PROMPT).add_local_python_source("arandu_evals")
 
 app = modal.App("arandu-evals", image=image)
 secrets = [modal.Secret.from_name("arandu-llm")]
