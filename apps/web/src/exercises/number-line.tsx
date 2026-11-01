@@ -189,7 +189,15 @@ function NumberLine({ state, onChange, disabled, feedback, highlight }: Exercise
     onPointerUp: (e: React.PointerEvent<HTMLButtonElement>) => {
       if (!drag || drag.w !== w) return
       setDrag(null)
-      if (!drag.active) return
+      if (!drag.active) {
+        // A touch tap on a captured pointer may never produce a click (seen in Chrome with touch
+        // emulation), so a tap chooses the phone here and the click, if it comes, is ignored.
+        if (e.pointerType !== 'mouse' && state.moved[w]) {
+          suppressClick.current = true
+          emit(choosePhone(state, w))
+        }
+        return
+      }
       suppressClick.current = true
       if (nearLine(e.clientY)) {
         landing.current = { w, x: e.clientX, y: e.clientY }

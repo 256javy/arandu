@@ -21,7 +21,7 @@ const PATH = [
 const nodeOf = (exerciseId: string) => PATH.findIndex((p) => p.ids.includes(exerciseId))
 
 /** Optional mission outside the path: the planner never picks it, the kid opens it. */
-export const PHOTO_PLAN: Plan = { exerciseId: 'fractions.photo', skill: 'fraction.equal-parts', reason: 'Misión opcional con una foto.' }
+const PHOTO_PLAN: Plan = { exerciseId: 'fractions.photo', skill: 'fraction.equal-parts', reason: 'Misión opcional con una foto.' }
 const artOf = (exerciseId: string) => exerciseId.replace(/^fractions\./, '')
 const INTRO_MS = 2500
 
@@ -109,6 +109,7 @@ function MissionPath({ currentNode, done, stars, bonus, onBonus }: {
           return (
             <li key={p.label} className="flex flex-1 items-center last:flex-none">
               <span
+                role="img"
                 aria-label={`${p.label}${isDone ? ', lista' : isCurrent ? ', ahora' : ''}`}
                 aria-current={isCurrent ? 'step' : undefined}
                 className={`grid size-10 shrink-0 place-items-center rounded-full border-2 transition-colors ${
