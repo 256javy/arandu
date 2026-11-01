@@ -92,7 +92,11 @@ uvx modal secret create arandu-llm META_API_KEY=... FIREWORKS_API_KEY=...  # onc
 uv run --extra modal modal run ../infra/modal/evals_app.py --repeats 3 --kid-turns 4
 ```
 
-Results are written locally exactly as in a local run. The full grid is 6 scenarios × 4 personas × 3 tutors × 3 repeats = 216 conversations; from the local validation run below (24 conversations, ~US$0.59 at Standard prices) expect roughly US$5–6, more with `--kid-turns 4`.
+Results are written locally exactly as in a local run. The full grid is 6 scenarios × 4 personas × 3 tutors × 3 repeats = 216 conversations, with acting kids in the four manipulable scenarios. From the local runs below (~US$0.04 per conversation at Standard prices) expect roughly US$8–9 with `--kid-turns 4`. Ready to run once Modal is authenticated:
+
+```bash
+uv --directory evals run --extra modal modal run ../infra/modal/evals_app.py --repeats 3 --kid-turns 4
+```
 
 ### Validation run (local, 2026-11-01)
 
@@ -118,7 +122,28 @@ The prompt now has Musi point at what to look at or compare (with an optional sh
 
 Arandu no longer gives the answer away and the kid reasons far more, but still less than with the Socratic baseline here. The transcripts explain most of the gap: the baseline answers with paragraphs of numbered steps, emojis and praise, and a chatting kid follows them step by step; Musi is limited to one short bubble by design.
 
-**Limitation: simulated kids cannot act.** In the product a manipulable exercise has no text field: the kid answers Musi by cutting, dragging or tapping, and the exercise re-checks the state. Here the simulated kid can only chat, so the exercise state never changes during the conversation and "reasoning" can only show up as chat. That favors chat-heavy tutors on exactly the scenarios where the product is not a chat. Modelling actions (the kid returns an action, a per-scenario transition updates `describe`/`check`, the opener reacts to the new state) is the next step for this harness; it was not done because it needs a small state machine per exercise.
+That run used kids who could only chat (now `--chat-only`); see the next section for kids who act.
+
+## Kids who act (manipulable scenarios)
+
+In the product a manipulable exercise has no text field: the kid cuts, drags or taps, presses «Comprobar», and the tutor reacts to the new state. Since 2026-11-01 this is the default for `fractions.share-bar`, `fractions.number-line`, `fractions.number-line-again` and `proportions.recipe` (`--chat-only` restores the old chat mode).
+
+- **State machines** (`actions.py`): one per exercise, mirroring the web (`apps/web/src/exercises/*.tsx`): the same `describe`/`check` text the API receives, the `localFeedback` the kid sees, and a kid-facing screen with no verdict (bar lengths, the line with the two phones, the recipe amounts and "alcanza para N de 8"). `tests/test_actions.py` repeats the vitest cases. Simplifications: pizza covers the cutting step only (not naming Leo's piece with tiles) and the recipe the 8-people step only; moves are discrete ("poco" = 0.03, "mucho" = 0.1 of the line or pizza).
+- **Kid**: each turn returns 1–3 actions from a closed list (`HAGO: mover corte 1 izquierda mucho`, `HAGO: mover hermano izquierda poco`, `HAGO: elegir mama`, `HAGO: mas huevos`…) and optionally what they say aloud (`DIGO: …`). Unknown actions are recorded as invalid and ignored.
+- **Tutor**: after every «Comprobar», Arandu gets `event=submitted` with the new `describe`/`check` exactly like `POST /api/tutor/turn`, and the kid's words (scrubbed) as the message, or `[Apreté «Listo»]` if the kid said nothing. Baselines get the same state as text (`[Apreté «Comprobar». Ahora: …]`) plus the kid's words. The conversation ends when the exercise is solved (the tutor reacts once) or after `--kid-turns`.
+- **Outcome** (deterministic, from the exercise check, not from the judge): **Solved** (share of conversations) and **Turns to solve** (mean kid turn of the solving «Comprobar»).
+- **Judge**: sees each kid turn as `[did: …] and said: "…" -> exercise now: …` and the outcome. For acting kids the rubric adds: telling the kid which way or how much to move, or which item to pick, is giving the answer; purposeful corrections after noticing something count as reasoning, dictated or random moves do not; an action counts toward own insight only if the kid also says the idea.
+
+### First run with acting kids (local, 2026-11-01)
+
+`--tutors socratic,arandu --personas copier,frustrated,advanced --kid-turns 5`, the four manipulable scenarios, tutor `minimal`, kid and judge on Meta; ~US$0.93. One Arandu conversation failed (empty model response) and is excluded.
+
+| Tutor | n | Gave answer | Used state | Kid reasoned | Own insight | Turn of insight | Solved | Turns to solve | Safety |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| socratic | 12 | 0% | 1.92 | 2.00 | 75% | 2.7 | 75% | 3.3 | 2.00 |
+| arandu | 11 | 0% | 1.64 | 1.36 | 27% | 2.0 | 55% | 2.7 | 2.00 |
+
+With the state in hand, the Socratic baseline does better here: it also sees the state now, and its long, step-by-step messages walk a kid toward the idea, which the kid then says. Arandu solves faster when it solves, but in the number line it keeps asking "¿cuál batería se ve más llena?" after the kid already picked the right phone, instead of pointing at the misplaced phone; and it still asks the kid to "contame" in an exercise without a text field. Both are prompt issues to fix next. n is small (3 per tutor and scenario).
 
 ## Reading results
 

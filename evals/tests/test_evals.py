@@ -181,7 +181,7 @@ def test_aggregate_insight_rate_and_turn():
 
 async def test_end_to_end_with_fake_llms(tmp_path):
     kid, tutor, judge_llm = FakeLLM(["no sé"]), FakeLLM(["¿Qué ves en la barra?"]), FakeLLM([json.dumps(GOOD)])
-    specs = build_specs(repeats=1, kid_turns=2, personas=["copier"], scenarios=["fractions.share-bar"])
+    specs = build_specs(repeats=1, kid_turns=2, personas=["copier"], scenarios=["fractions.share-bar"], act=False)
     records = await run_all(specs, {"kid": kid, "tutor": tutor, "judge": judge_llm}, concurrency=2)
     assert len(records) == 3 and all(r["error"] is None for r in records)
     assert all(len(r["turns"]) == 5 for r in records)  # opener + 2 x (kid, tutor)

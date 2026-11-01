@@ -28,6 +28,8 @@ def parser() -> argparse.ArgumentParser:
     run.add_argument("--scenarios", help=f"comma-separated subset of {[s.id for s in S.SCENARIOS]}")
     run.add_argument("--personas", help=f"comma-separated subset of {[x.id for x in P.PERSONAS]}")
     run.add_argument("--tutors", help=f"comma-separated subset of {list(TUTORS)}")
+    run.add_argument("--chat-only", action="store_true",
+                     help="old mode: in manipulable scenarios the simulated kid chats instead of acting")
     run.add_argument("--tutor-effort", choices=["minimal", "low", "medium", "high"],
                      default=os.environ.get("ARANDU_EVAL_TUTOR_EFFORT", "minimal"),
                      help="reasoning_effort for the tutors under test (the API's META_TUTOR_REASONING_EFFORT, "
@@ -50,7 +52,7 @@ async def _run(args: argparse.Namespace) -> int:
     notes.append(f"tutor reasoning_effort={args.tutor_effort} (kid and judge: low)")
     await warm_up_roles(roles)
     specs = build_specs(repeats=args.repeats, kid_turns=args.kid_turns, scenarios=_csv(args.scenarios),
-                        personas=_csv(args.personas), tutors=_csv(args.tutors))
+                        personas=_csv(args.personas), tutors=_csv(args.tutors), act=not args.chat_only)
     print(f"{len(specs)} conversations; " + ", ".join(f"{r}={c.provider}/{c.model}" for r, c in roles.items()),
           file=sys.stderr)
     done = 0

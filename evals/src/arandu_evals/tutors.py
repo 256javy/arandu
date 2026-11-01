@@ -95,11 +95,14 @@ class Turn:
 
 
 def build_messages(tutor: str, scenario: Scenario, history: list[Turn], *,
-                   system_prompt: str | None = None) -> list[dict]:
-    """Messages for the tutor's next reply. An empty history means the opener (reacting to the event)."""
+                   system_prompt: str | None = None, event: str | None = None,
+                   opener_message: str | None = None) -> list[dict]:
+    """Messages for the tutor's next reply. An empty history means the opener (reacting to the event).
+    `event` overrides the API event of a later turn (kids who act send `submitted`, not `message`);
+    `opener_message` replaces the opener's placeholder (baselines that get the state as text)."""
     opener = not history
     if tutor == "arandu":
-        event = scenario.event if opener else "message"
+        event = scenario.event if opener else (event or "message")
         messages = [
             {"role": "system", "content": system_prompt if system_prompt is not None else load_system_prompt()},
             {"role": "system", "content": context(scenario, event)},
@@ -118,5 +121,5 @@ def build_messages(tutor: str, scenario: Scenario, history: list[Turn], *,
         else:
             messages.append({"role": "user", "content": clean(t.text)})
     if opener:
-        messages.append({"role": "user", "content": event_user_message(scenario.event)})
+        messages.append({"role": "user", "content": opener_message or event_user_message(scenario.event)})
     return messages
