@@ -97,10 +97,15 @@ public class TutorController {
             req.evidence().stream().filter(e -> exercise.skills().contains(e.skill())).forEach(items::add);
         }
         String kidText = scrub(req.message());
+        EvidenceItem judged = null;
         if (exercise.llmJudged() && "submitted".equals(req.event()) && !kidText.isBlank()) {
             try {
-                assessor.assess(exercise.rubric(), kidText).ifPresent(v -> items.add(
-                        new EvidenceItem(exercise.skills().getFirst(), v.ok(), "medium", v.detail())));
+                var verdict = assessor.assess(exercise.rubric(), kidText);
+                if (verdict.isPresent()) {
+                    judged = new EvidenceItem(exercise.skills().getFirst(), verdict.get().ok(), "medium",
+                            verdict.get().detail());
+                    items.add(judged);
+                }
             } catch (RuntimeException ex) {
                 log.warn("assessment failed for {}", exercise.id(), ex);
             }
@@ -108,8 +113,9 @@ public class TutorController {
 
         LearnerModel before = learners.model(req.learnerId());
         for (EvidenceItem e : items) {
+            // Only the judged explanation keeps the kid's (scrubbed) words, for the family view.
             evidenceRepo.save(new Evidence(req.learnerId(), e.skill(), e.ok(), e.confidence(),
-                    req.exerciseId(), e.detail()));
+                    req.exerciseId(), e.detail(), e == judged ? kidText : null));
         }
 
         List<TutorModel.Message> messages = new ArrayList<>();

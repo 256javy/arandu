@@ -46,3 +46,6 @@ arandu:
     judge:
       reasoning-effort: ${META_JUDGE_REASONING_EFFORT:minimal}
       max-tokens: ${META_JUDGE_MAX_TOKENS:2000}
+    spotlight:
+      reasoning-effort: ${META_SPOTLIGHT_REASONING_EFFORT:minimal}
+      max-tokens: ${META_SPOTLIGHT_MAX_TOKENS:2000}
