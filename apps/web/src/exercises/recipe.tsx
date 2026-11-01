@@ -69,6 +69,10 @@ export function bump(s: RecipeState, k: Ingredient, delta: number): RecipeState 
   return { ...s, [key]: { ...s[key], [k]: v }, sixTouched: s.sixTouched || key === 'six' }
 }
 
+/** ↺ in the 6-people step starts that step over and keeps the confirmed 8-people recipe. */
+export const resetStep = (s: RecipeState): RecipeState =>
+  s.eightDone ? { ...s, six: { ...BASE }, sixTouched: false } : { eight: { ...BASE }, six: { ...BASE }, sixTouched: false, eightDone: false }
+
 const list = (a: Amounts) => INGREDIENTS.map((k) => `${a[k]} ${INFO[k].unit[a[k] === 1 ? 0 : 1]}`).join(', ')
 
 /** Live text for screen readers: the same as the visual (amounts and how many people they feed), no verdict. */
@@ -227,9 +231,8 @@ function Recipe({ state, onChange, disabled, feedback, highlight }: ExerciseProp
         })}
       </div>
 
-      <p className="sr-only" aria-live="polite">
-        {describeAmounts(state)} Con el teclado: usá Tab hasta los botones Más y Menos de cada ingrediente.
-      </p>
+      <p className="sr-only">Con el teclado: usá Tab hasta los botones Más y Menos de cada ingrediente.</p>
+      <p className="sr-only" aria-live="polite">{describeAmounts(state)}</p>
     </div>
   )
 }
@@ -287,6 +290,7 @@ export const recipe: ExerciseDefinition<RecipeState> = {
     return bad.skill === 'proportion.unit-rate' ? 'Pensá cuánto va para 2 personas.' : 'Mirá: ¿es la misma receta para todos?'
   },
   initialState: () => ({ eight: { ...BASE }, six: { ...BASE }, sixTouched: false, eightDone: false }),
+  resetStep,
   describe,
   check,
   Component: Recipe,

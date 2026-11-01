@@ -95,4 +95,8 @@ describe('recipe step confirmation', () => {
     expect(describeAmounts(st([4, 8, 5]))).not.toMatch(/justo|misma receta|sobra/)
     expect(describeAmounts(st([4, 8, 4], [3, 6, 3], true, true))).toContain('Para 6 personas tenés 3 tazas de harina')
   })
+  it('resetStep restarts only the 6-people step once 8 is confirmed', () => {
+    expect(recipe.resetStep!(st([4, 8, 4], [5, 1, 0], true, true))).toEqual(st([4, 8, 4], [2, 4, 2], false, true))
+    expect(recipe.resetStep!(st([5, 8, 4]))).toEqual(recipe.initialState())
+  })
 })

@@ -59,3 +59,14 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .bubble-in, .pop-in { animation: none; }
 }
+
+/* Mission scene on phones: pops in, then fades out before it unmounts. */
+@keyframes intro-scene {
+  0% { opacity: 0; transform: scale(0.9); }
+  12%, 80% { opacity: 1; transform: none; }
+  100% { opacity: 0; }
+}
+.intro-scene { animation: intro-scene 2.5s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .intro-scene { animation: none; }
+}
