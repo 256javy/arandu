@@ -18,20 +18,68 @@ class Provider:
     model: str
 
 
-PROVIDERS: dict[str, Provider] = {
-    "meta": Provider(
-        "meta",
-        os.environ.get("META_API_BASE_URL") or "https://api.meta.ai/v1",
-        "META_API_KEY",
-        os.environ.get("META_MODEL") or "muse-spark-1.3",
-    ),
-    "fireworks": Provider(
-        "fireworks",
-        "https://api.fireworks.ai/inference/v1",
-        "FIREWORKS_API_KEY",
-        "accounts/fireworks/models/muse-spark-open",
-    ),
-}
+GLIMMER_DEFAULT_MODEL = "muse-glimmer"  # --served-model-name in infra/modal/glimmer_app.py
+
+
+def build_providers(env: dict[str, str] | os._Environ = os.environ) -> dict[str, Provider]:
+    """Providers from the environment. "glimmer" is the open-weights Muse Glimmer served with vLLM
+    (infra/modal/glimmer_app.py); its base URL has no default because it depends on the deployment."""
+    return {
+        "meta": Provider(
+            "meta",
+            env.get("META_API_BASE_URL") or "https://api.meta.ai/v1",
+            "META_API_KEY",
+            env.get("META_MODEL") or "muse-spark-1.3",
+        ),
+        "fireworks": Provider(
+            "fireworks",
+            "https://api.fireworks.ai/inference/v1",
+            "FIREWORKS_API_KEY",
+            "accounts/fireworks/models/muse-spark-open",
+        ),
+        "glimmer": Provider(
+            "glimmer",
+            (env.get("GLIMMER_BASE_URL") or "").rstrip("/"),
+            "GLIMMER_API_KEY",
+            env.get("GLIMMER_MODEL") or GLIMMER_DEFAULT_MODEL,
+        ),
+    }
+
+
+PROVIDERS: dict[str, Provider] = build_providers()
+PROVIDER_CHOICES = ("auto", *PROVIDERS)
+# Self-hosted Glimmer runs on one GPU shared by every concurrent conversation, so calls queue longer.
+CALL_TIMEOUT: dict[str, float] = {"glimmer": 300}
+WARMUP_TIMEOUT = 600  # a Modal cold start (60 GB from the Volume + vLLM warm-up) takes minutes
+
+
+def check_glimmer_config(requested: dict[str, str], env: dict[str, str] | os._Environ = os.environ,
+                         required: tuple[str, ...] = ("GLIMMER_BASE_URL", "GLIMMER_API_KEY")) -> None:
+    """Fails fast, before any API call, when a role asks for Glimmer but it is not configured.
+    On Modal the key lives in the `arandu-glimmer` Secret, so the entrypoint only requires the URL."""
+    roles = [r for r, p in requested.items() if p == "glimmer"]
+    if not roles:
+        return
+    missing = [v for v in required if not env.get(v)]
+    if missing:
+        raise SystemExit(f"{', '.join(roles)} use glimmer but {', '.join(missing)} is not set "
+                         "(see infra/modal/README.md)")
+
+
+async def warm_up(provider_name: str, *, timeout: float = WARMUP_TIMEOUT) -> None:
+    """GET /models until the server answers, so a cold start does not eat the per-call timeouts."""
+    provider = PROVIDERS[provider_name]
+    client = AsyncOpenAI(base_url=provider.base_url, api_key=os.environ[provider.key_env], timeout=timeout,
+                         max_retries=0)
+    try:
+        await client.models.list()
+    finally:
+        await client.close()
+
+
+async def warm_up_roles(roles: dict[str, RoleConfig]) -> None:
+    for name in {c.provider for c in roles.values() if c.provider == "glimmer"}:
+        await warm_up(name)
 
 ROLES = ("kid", "tutor", "judge")
 
@@ -63,9 +111,12 @@ class OpenAICompatLLM:
         key = os.environ.get(provider.key_env)
         if not key:
             raise RuntimeError(f"{provider.key_env} is not set")
+        if not provider.base_url:
+            raise RuntimeError(f"no base URL for {provider.name} (set GLIMMER_BASE_URL to the Modal URL + /v1)")
         self.provider = provider.name
         self.model = provider.model
-        self._client = AsyncOpenAI(base_url=provider.base_url, api_key=key, timeout=120, max_retries=4)
+        self._client = AsyncOpenAI(base_url=provider.base_url, api_key=key,
+                                   timeout=CALL_TIMEOUT.get(provider.name, 120), max_retries=4)
         self._max_tokens = max_tokens
         self._effort = reasoning_effort
         self._empty_retries = empty_retries

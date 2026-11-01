@@ -3,11 +3,17 @@
 Reuses the `arandu_evals` package from evals/src (shipped with add_local_python_source) and the real
 tutor prompt from apps/api. API keys come from the Modal Secret `arandu-llm`.
 
-    uv --directory evals run --extra modal modal run ../infra/modal/evals_app.py --repeats 1 --kid-turns 3
+    uv --directory evals run --extra modal modal run ../infra/modal/evals_app.py --repeats 3
+
+Simulated kids on Muse Glimmer (see infra/modal/README.md):
+
+    GLIMMER_BASE_URL=https://<workspace>--arandu-glimmer-server.modal.run/v1 \
+    uv --directory evals run --extra modal modal run ../infra/modal/evals_app.py --repeats 3 --kid-provider glimmer
 """
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -29,21 +35,30 @@ image = (
 )
 
 app = modal.App("arandu-evals", image=image)
-secret = modal.Secret.from_name("arandu-llm")
+secrets = [modal.Secret.from_name("arandu-llm")]
+# Opt-in Muse Glimmer (infra/modal/glimmer_app.py): export GLIMMER_BASE_URL locally before `modal run` and
+# its URL/model travel to the containers; the key comes from the same Secret the server validates against.
+if os.environ.get("GLIMMER_BASE_URL"):
+    secrets += [
+        modal.Secret.from_dict({"GLIMMER_BASE_URL": os.environ["GLIMMER_BASE_URL"],
+                                "GLIMMER_MODEL": os.environ.get("GLIMMER_MODEL", "muse-glimmer")}),
+        modal.Secret.from_name("arandu-glimmer"),
+    ]
 
 
-@app.function(secrets=[secret], timeout=60 * 15, retries=0)
+@app.function(secrets=secrets, timeout=60 * 15, retries=0)
 async def resolve(requested: dict[str, str]) -> dict:
     """Probes providers from inside Modal, where the keys live."""
     from dataclasses import asdict
 
-    from arandu_evals.llm import resolve_roles
+    from arandu_evals.llm import resolve_roles, warm_up_roles
 
     roles, notes = await resolve_roles(requested)
+    await warm_up_roles(roles)  # wakes the Glimmer server once instead of in every fanned-out call
     return {"roles": {k: asdict(v) for k, v in roles.items()}, "notes": notes}
 
 
-@app.function(secrets=[secret], timeout=60 * 15, max_containers=16)
+@app.function(secrets=secrets, timeout=60 * 15, max_containers=16)
 async def run_one(spec: dict, roles: dict[str, dict]) -> dict:
     from arandu_evals.llm import RoleConfig, make_clients
     from arandu_evals.runner import run_spec
@@ -56,13 +71,15 @@ async def run_one(spec: dict, roles: dict[str, dict]) -> dict:
 @app.local_entrypoint()
 def main(repeats: int = 1, kid_turns: int = 4, kid_provider: str = "auto", tutor_provider: str = "meta",
          judge_provider: str = "meta", scenarios: str = "", personas: str = "", tutors: str = ""):
-    from arandu_evals.llm import RoleConfig
+    from arandu_evals.llm import RoleConfig, check_glimmer_config
     from arandu_evals.runner import build_specs, new_run_dir, write_results
 
     def csv(v: str) -> list[str] | None:
         return [x for x in v.split(",") if x] or None
 
-    resolved = resolve.remote({"kid": kid_provider, "tutor": tutor_provider, "judge": judge_provider})
+    requested = {"kid": kid_provider, "tutor": tutor_provider, "judge": judge_provider}
+    check_glimmer_config(requested, required=("GLIMMER_BASE_URL",))  # the key comes from the Modal Secret
+    resolved = resolve.remote(requested)
     for n in resolved["notes"]:
         print(f"note: {n}")
     specs = build_specs(repeats=repeats, kid_turns=kid_turns, scenarios=csv(scenarios),
