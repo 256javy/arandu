@@ -12,18 +12,21 @@ interface Ev { skill: string; ok: boolean; confidence: Confidence; exercise: str
 interface Plan { exerciseId: string; skill: string; reason: string }
 
 // Mirror of the API's catalog and planner (apps/api .../planner), small enough to keep in sync by hand.
-const SKILLS = ['fraction.equal-parts', 'fraction.notation', 'fraction.compare', 'fraction.equivalence']
+const SKILLS = ['fraction.equal-parts', 'fraction.notation', 'fraction.compare', 'fraction.equivalence', 'proportion.scale', 'proportion.unit-rate']
 const LABEL: Record<string, string> = {
   'fraction.equal-parts': 'partes iguales',
   'fraction.notation': 'notación a/b',
   'fraction.compare': 'comparar fracciones',
   'fraction.equivalence': 'fracciones equivalentes',
+  'proportion.scale': 'escalar una receta',
+  'proportion.unit-rate': 'valor por unidad',
 }
 const CATALOG = [
   { id: 'fractions.share-bar', skills: ['fraction.equal-parts', 'fraction.notation'], llm: false },
   { id: 'fractions.number-line', skills: ['fraction.compare'], llm: false },
   { id: 'fractions.explain-compare', skills: ['fraction.compare'], llm: true },
   { id: 'fractions.explain-equivalence', skills: ['fraction.equivalence'], llm: true },
+  { id: 'proportions.recipe', skills: ['proportion.scale', 'proportion.unit-rate'], llm: false },
 ]
 const WEIGHT: Record<Confidence, number> = { high: 1, medium: 0.6, low: 0.3 }
 

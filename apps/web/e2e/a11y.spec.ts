@@ -10,6 +10,7 @@ const PAGES: { name: string; path: string; signedIn?: boolean; next?: string; re
   { name: 'pizza', path: '/aprender', signedIn: true, next: 'fractions.share-bar', ready: (p) => expect(p.getByRole('heading', { name: 'Repartí la pizza entre 4.' })).toBeVisible() },
   { name: 'number line', path: '/aprender', signedIn: true, next: 'fractions.number-line', ready: (p) => expect(p.getByRole('heading', { name: '¿Dónde va cada batería?' })).toBeVisible() },
   { name: 'explain', path: '/aprender', signedIn: true, next: 'fractions.explain-compare', ready: (p) => expect(p.getByLabel('Tu respuesta')).toBeVisible() },
+  { name: 'recipe', path: '/aprender', signedIn: true, next: 'proportions.recipe', ready: (p) => expect(p.getByRole('heading', { name: 'Hacé panqueques para 8.' })).toBeVisible() },
   { name: 'photo', path: '/aprender?mision=foto', signedIn: true, ready: (p) => expect(p.getByRole('button', { name: 'Probar con una foto de ejemplo' })).toBeVisible() },
   { name: 'family', path: '/familia', signedIn: true, ready: (p) => expect(p.getByRole('tab', { name: 'Tati' })).toBeVisible() },
 ]
