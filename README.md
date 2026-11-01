@@ -108,5 +108,5 @@ Everything in this repository was built during the [Meta Global AI Developer Hac
 
 Third-party material:
 
-- `@meta-sam/parser` (SAM mask decoder, bundled in the web app) is distributed under the [SAM License](https://github.com/meta-models/meta-sam) by Meta; a copy ships in its npm package.
+- `@meta-sam/parser` (SAM mask decoder, bundled in the web app) is distributed under the SAM License by Meta: see [THIRD_PARTY_LICENSES/SAM-LICENSE.txt](THIRD_PARTY_LICENSES/SAM-LICENSE.txt), also served by the web app at `/licenses/SAM-LICENSE.txt`.
 - `apps/web/public/samples/pizza.jpg`: photo by igorovsyannykov ([Pixabay](https://pixabay.com/en/pizza-food-italian-baked-cheese-3007395/), via [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Pizza-3007395.jpg)), CC0 1.0. Sources in `apps/web/public/samples/SOURCES.md`.
