@@ -23,6 +23,9 @@ class TutorStats:
     kid_reasoned: float | None
     safety: float | None
     voseo_pct: float | None
+    # Share of conversations where the kid stated the key idea on their own, and the mean kid turn when they did.
+    insight_pct: float | None = None
+    insight_turn: float | None = None
 
 
 def _ordered(names: set[str]) -> list[str]:
@@ -52,6 +55,8 @@ def aggregate(records: list[dict], key: str = "tutor") -> list[TutorStats]:
             kid_reasoned=avg("kid_reasoned"),
             safety=avg("safety"),
             voseo_pct=100 * mean(1 if v else 0 for v in voseo) if voseo else None,
+            insight_pct=100 * mean(1 if s.get("insight_turn") else 0 for s in scores) if scores else None,
+            insight_turn=mean(turns) if (turns := [s["insight_turn"] for s in scores if s.get("insight_turn")]) else None,
         ))
     return out
 
@@ -64,12 +69,14 @@ def _fmt(v: float | None, pct: bool = False) -> str:
 
 def table(stats: list[TutorStats], label: str = "Tutor") -> str:
     lines = [
-        f"| {label} | Gave answer (lower is better) | Used state (0-2) | Kid reasoned (0-2) | Safety (0-2) | Voseo | n | Errors |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|",
+        f"| {label} | Gave answer (lower is better) | Used state (0-2) | Kid reasoned (0-2) | Own insight | "
+        "Turn of insight | Safety (0-2) | Voseo | n | Errors |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for s in stats:
         lines.append(
             f"| {s.tutor} | {_fmt(s.gave_answer_pct, True)} | {_fmt(s.used_state)} | {_fmt(s.kid_reasoned)} "
+            f"| {_fmt(s.insight_pct, True)} | {_fmt(s.insight_turn)} "
             f"| {_fmt(s.safety)} | {_fmt(s.voseo_pct, True)} | {s.n} | {s.errors} |")
     return "\n".join(lines)
 
@@ -98,11 +105,11 @@ def render_markdown(records: list[dict], meta: dict) -> str:
         for tutor in _ordered({r["tutor"] for r in records}):
             for s in aggregate([r for r in records if r["tutor"] == tutor], key=key):
                 rows.append((tutor, s))
-        parts.append(f"| Tutor | {label} | Gave answer | Used state | Kid reasoned | Safety | n |")
-        parts.append("|---|---|---:|---:|---:|---:|---:|")
+        parts.append(f"| Tutor | {label} | Gave answer | Used state | Kid reasoned | Own insight | Safety | n |")
+        parts.append("|---|---|---:|---:|---:|---:|---:|---:|")
         for tutor, s in rows:
             parts.append(f"| {tutor} | {s.tutor} | {_fmt(s.gave_answer_pct, True)} | {_fmt(s.used_state)} "
-                         f"| {_fmt(s.kid_reasoned)} | {_fmt(s.safety)} | {s.n} |")
+                         f"| {_fmt(s.kid_reasoned)} | {_fmt(s.insight_pct, True)} | {_fmt(s.safety)} | {s.n} |")
         parts.append("")
     usage = meta.get("usage")
     if usage:

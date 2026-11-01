@@ -29,8 +29,9 @@ def parser() -> argparse.ArgumentParser:
     run.add_argument("--personas", help=f"comma-separated subset of {[x.id for x in P.PERSONAS]}")
     run.add_argument("--tutors", help=f"comma-separated subset of {list(TUTORS)}")
     run.add_argument("--tutor-effort", choices=["minimal", "low", "medium", "high"],
-                     default=os.environ.get("ARANDU_EVAL_TUTOR_EFFORT", "low"),
-                     help="reasoning_effort for the tutors under test (the API's META_TUTOR_REASONING_EFFORT)")
+                     default=os.environ.get("ARANDU_EVAL_TUTOR_EFFORT", "minimal"),
+                     help="reasoning_effort for the tutors under test (the API's META_TUTOR_REASONING_EFFORT, "
+                          "minimal by default like the product)")
     defaults = {"kid": "auto", "tutor": "meta", "judge": "meta"}
     for role in ROLES:
         run.add_argument(f"--{role}-provider", choices=PROVIDER_CHOICES,

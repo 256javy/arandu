@@ -55,10 +55,9 @@ def load_system_prompt() -> str:
 
 
 def context(scenario: Scenario, event: str) -> str:
-    """Same format as TutorController.context(). The product appends memory() of earlier sessions;
-    simulated kids have no prior evidence, so that part is always empty here."""
-    sb = f"Ejercicio: {scenario.id}"
-    sb += "\nTipo: " + ("explicar (el chico escribe su respuesta)" if scenario.id in EXPLAIN_EXERCISES
+    """Same format as TutorController.context() followed by memory() of earlier sessions."""
+    sb = f"Ejercicio: {scenario.exercise_id}"
+    sb += "\nTipo: " + ("explicar (el chico escribe su respuesta)" if scenario.exercise_id in EXPLAIN_EXERCISES
                         else "manipulable (el chico toca y mueve; no puede escribir)")
     if scenario.goal is not None:
         sb += f"\nObjetivo: {scenario.goal}"
@@ -69,6 +68,18 @@ def context(scenario: Scenario, event: str) -> str:
         sb += f"\nEvidencia: {e.skill}{' (bien' if e.ok else ' (mal'}, confianza {e.confidence})"
         if e.detail is not None:
             sb += f" {e.detail}"
+    return sb + memory(scenario)
+
+
+def memory(scenario: Scenario) -> str:
+    """Same format as TutorController.memory(); empty when the scenario has no earlier sessions."""
+    sb = ""
+    for m in scenario.memory:
+        if m.attempts == 0:
+            continue
+        sb += ("\nMemoria de sesiones anteriores:" if not sb else "") + (
+            f"\n- {m.label}: {m.successes} de {m.attempts} bien, último intento en {m.last_exercise}"
+            + (" (lo podés usar como puente)" if m.successes > 0 else ""))
     return sb
 
 
