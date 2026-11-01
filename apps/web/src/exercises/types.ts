@@ -35,6 +35,8 @@ export interface ExerciseDefinition<S> {
   explainSkill?: string
   /** Multi-step missions: id of the current step (e.g. 'cut' then 'notation'), so Learn can swap prompt/bubble. */
   step?(state: S): string
+  /** On-screen copy for a step other than the first one; falls back to `prompt`/`firstBubble`. */
+  stepCopy?: Record<string, { prompt: string; bubble: string }>
   initialState(): S
   /** Plain Spanish for the LLM, no percentages: pieces and comparisons. `lastAnswer` is the kid's text in 'text' mode. */
   describe(state: S, lastAnswer?: string): string
