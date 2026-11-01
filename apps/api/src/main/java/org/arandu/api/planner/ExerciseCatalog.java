@@ -21,7 +21,8 @@ public final class ExerciseCatalog {
 
     /** Skills in teaching order. */
     public static final List<String> SKILLS = List.of(
-            "fraction.equal-parts", "fraction.notation", "fraction.compare", "fraction.equivalence");
+            "fraction.equal-parts", "fraction.notation", "fraction.compare", "fraction.equivalence",
+            "proportion.scale", "proportion.unit-rate");
 
     public static final List<Exercise> EXERCISES = List.of(
             new Exercise("fractions.share-bar", Mode.MANIPULABLE,
@@ -43,6 +44,8 @@ public final class ExerciseCatalog {
                     una razón válida en sus palabras: los pedazos son más chicos pero tiene más; dos cuartos \
                     forman una mitad; multiplicar arriba y abajo por 2; es la misma parte o proporción del \
                     total. Decir solo "son iguales" sin razón no alcanza."""),
+            new Exercise("proportions.recipe", Mode.MANIPULABLE,
+                    List.of("proportion.scale", "proportion.unit-rate"), null),
             new Exercise("fractions.photo", Mode.PHOTO, List.of("fraction.equal-parts", "fraction.notation"), null));
 
     private ExerciseCatalog() {

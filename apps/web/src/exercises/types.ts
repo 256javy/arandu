@@ -38,6 +38,8 @@ export interface ExerciseDefinition<S> {
   /** On-screen copy for a step other than the first one; falls back to `prompt`/`firstBubble`. */
   stepCopy?: Record<string, { prompt: string; bubble: string }>
   initialState(): S
+  /** What the dock's ↺ does when set: restart only the current step (default: `initialState()`). */
+  resetStep?(state: S): S
   /** Plain Spanish for the LLM, no percentages: pieces and comparisons. `lastAnswer` is the kid's text in 'text' mode. */
   describe(state: S, lastAnswer?: string): string
   /** Deterministic when possible; empty when the LLM judges. */

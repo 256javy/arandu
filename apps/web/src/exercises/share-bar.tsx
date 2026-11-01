@@ -348,10 +348,11 @@ function ShareBar({ state, onChange, disabled, feedback, highlight }: ExercisePr
               onKeyDown={(e) => {
                 if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
                   e.preventDefault()
-                  setCut(i, c - (e.shiftKey ? 5 : 1) * KEY_STEP, true)
+                  // no snap on keys: near the equal split it would trap fine steps
+                  setCut(i, c - (e.shiftKey ? 5 : 1) * KEY_STEP, false)
                 } else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
                   e.preventDefault()
-                  setCut(i, c + (e.shiftKey ? 5 : 1) * KEY_STEP, true)
+                  setCut(i, c + (e.shiftKey ? 5 : 1) * KEY_STEP, false)
                 } else if (e.key === 'Delete' || e.key === 'Backspace') {
                   e.preventDefault()
                   emit({ ...state, cuts: state.cuts.filter((_, j) => j !== i) })
@@ -374,10 +375,12 @@ function ShareBar({ state, onChange, disabled, feedback, highlight }: ExercisePr
         )}
       </div>
 
-      <p id="share-bar-help" className="sr-only" aria-live="polite">
-        {describe({ ...state, num: '', den: '' })} Con el teclado: enfocá un corte y usá las flechas; Suprimir lo borra.
+      <p id="share-bar-help" className="sr-only">
+        Con el teclado: enfocá un corte y usá las flechas; Suprimir lo borra.
         {equal && ' Armá la fracción de Leo: enfocá una ranura y apretá un número del 1 al 5.'}
       </p>
+      {/* Only state changes are announced; the help above is read through aria-describedby. */}
+      <p className="sr-only" aria-live="polite">{describe({ ...state, num: '', den: '' })}</p>
 
       {!equal && (
         <div className="flex gap-3">

@@ -62,16 +62,27 @@ function WhoLearns() {
         {me.data?.learners.length === 0 && <p className="text-center">Todavía no hay perfiles. Un adulto puede crear uno en Familia.</p>}
         <ul className="flex flex-col gap-3">
           {me.data?.learners.map((l) => (
-            <li key={l.id}>
+            <li key={l.id} className="flex gap-2">
               <Button
                 size="lg"
-                className="w-full"
+                className="flex-1"
                 onClick={() => {
                   storeLearnerId(l.id)
                   void navigate({ to: '/aprender' })
                 }}
               >
                 Soy {l.nickname}
+              </Button>
+              <Button
+                size="lg"
+                variant="secondary"
+                aria-label={`Tu pizza: misión con foto para ${l.nickname}`}
+                onClick={() => {
+                  storeLearnerId(l.id)
+                  void navigate({ to: '/aprender', search: { mision: 'foto' } })
+                }}
+              >
+                <span aria-hidden>📷</span> Tu pizza
               </Button>
             </li>
           ))}
