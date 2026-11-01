@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -68,7 +69,7 @@ public class Assessor {
     private final TutorModel model;
     private final ObjectMapper json;
 
-    public Assessor(TutorModel model, ObjectMapper json) {
+    public Assessor(@Qualifier(TutorConfig.JUDGE) TutorModel model, ObjectMapper json) {
         this.model = model;
         this.json = json;
     }

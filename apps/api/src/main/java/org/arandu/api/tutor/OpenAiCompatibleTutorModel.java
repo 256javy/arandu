@@ -37,6 +37,14 @@ public class OpenAiCompatibleTutorModel implements TutorModel {
         this.maxTokens = maxTokens;
     }
 
+    String reasoningEffort() {
+        return reasoningEffort;
+    }
+
+    int maxTokens() {
+        return maxTokens;
+    }
+
     @Override
     public String complete(List<Message> messages) {
         Response res = client.post()
