@@ -28,6 +28,9 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import org.arandu.api.family.SpotlightService;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @RestController
 @RequestMapping("/api/tutor")
@@ -63,6 +66,10 @@ public class TutorController {
     private static final Pattern ADDRESS = Pattern.compile(
             "(?iu)\\b(?:calle|avenida|avda|av|ruta|pasaje|barrio)\\.?\\s+(?:[\\p{L}.]+\\s+){0,4}(?:n[°º.]?\\s*)?\\d+");
     private static final Pattern DIGIT = Pattern.compile("\\d");
+    /** a/b with up to two digits on each side, e.g. 3/4 or 12/16. */
+    private static final Pattern FRACTION = Pattern.compile("(?<![\\d/])\\d{1,2}\\s*/\\s*\\d{1,2}(?![\\d/])");
+    /** A standalone number of one or two digits. */
+    private static final Pattern SHORT_NUMBER = Pattern.compile("(?<![\\d/])\\d{1,2}(?![\\d/])");
     static final String HIDDEN = "[dato oculto]";
     static final int QUOTE_MAX_DIGITS = 7;
 
@@ -70,10 +77,12 @@ public class TutorController {
     private final EvidenceRepository evidenceRepo;
     private final TutorModel model;
     private final Assessor assessor;
+    private final SpotlightService spotlight;
     private final String systemPrompt;
 
     public TutorController(LearnerService learners, EvidenceRepository evidenceRepo, TutorModel model,
-                           Assessor assessor) {
+                           Assessor assessor, SpotlightService spotlight) {
+        this.spotlight = spotlight;
         this.learners = learners;
         this.evidenceRepo = evidenceRepo;
         this.model = model;
@@ -105,10 +114,33 @@ public class TutorController {
             return null;
         }
         String scrubbed = scrub(raw);
-        if (!scrubbed.equals(raw) || DIGIT.matcher(raw).results().count() >= QUOTE_MAX_DIGITS) {
+        if (!scrubbed.equals(raw)) {
+            return null;
+        }
+        // Fractions ("a 3/4 le falta 1/4") and short numbers are math, not personal data: only the digits of
+        // longer numbers count toward the limit (phones and long runs were already caught by the scrub).
+        String longNumbers = SHORT_NUMBER.matcher(FRACTION.matcher(raw).replaceAll(" ")).replaceAll(" ");
+        if (DIGIT.matcher(longNumbers).results().count() >= QUOTE_MAX_DIGITS) {
             return null;
         }
         return scrubbed;
+    }
+
+    /**
+     * New evidence makes the family summary stale: regenerate it in the background once this turn's
+     * transaction commits (so the refresh sees the new rows and never holds or breaks the turn's transaction).
+     */
+    private void refreshSpotlightAfterCommit(UUID learnerId) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    spotlight.refreshInBackground(learnerId);
+                }
+            });
+        } else {
+            spotlight.refreshInBackground(learnerId);
+        }
     }
 
     static final int DETAIL_MAX = 200;
@@ -157,6 +189,9 @@ public class TutorController {
             // Only the judged explanation keeps the kid's (scrubbed) words, for the family view.
             evidenceRepo.save(new Evidence(req.learnerId(), e.skill(), e.ok(), e.confidence(),
                     req.exerciseId(), e.detail(), e == judged ? quotable(req.message()) : null));
+        }
+        if (!items.isEmpty()) {
+            refreshSpotlightAfterCommit(req.learnerId());
         }
 
         List<TutorModel.Message> messages = new ArrayList<>();
