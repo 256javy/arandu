@@ -8,7 +8,8 @@ export const REAL = !!process.env.E2E_API_URL
 const portions = JSON.parse(readFileSync(new URL('../src/exercises/__fixtures__/pizza-portions.json', import.meta.url), 'utf8'))
 
 type Confidence = 'high' | 'medium' | 'low'
-interface Ev { skill: string; ok: boolean; confidence: Confidence; exercise: string; detail: string; at: string }
+/** `quote`: the kid's own words, kept only for explanations judged by the model. */
+interface Ev { skill: string; ok: boolean; confidence: Confidence; exercise: string; detail: string; at: string; quote: string | null }
 interface Plan { exerciseId: string; skill: string; reason: string }
 
 // Mirror of the API's catalog and planner (apps/api .../planner), small enough to keep in sync by hand.
@@ -101,7 +102,7 @@ export async function mockApi(page: Page, opts: MockOptions = {}) {
       learners.push(l)
       return json(r, l)
     }
-    const m = path.match(/^\/api\/learners\/([^/]+)(?:\/(next|mastery|evidence))?$/)
+    const m = path.match(/^\/api\/learners\/([^/]+)(?:\/(next|mastery|evidence|spotlight))?$/)
     if (m && m[2] === 'next') return json(r, opts.forceNext ? { exerciseId: opts.forceNext, skill: 'x', reason: 'Forzado.' } : plan(evidence))
     if (m && m[2] === 'mastery')
       return json(r, SKILLS.map((s) => {
@@ -109,11 +110,15 @@ export async function mockApi(page: Page, opts: MockOptions = {}) {
         return { skill: s, label: LABEL[s], attempts: st.attempts, successes: st.successes, mastery: st.mastery, status: st.status,
           lastDetail: st.last?.detail ?? null, lastExercise: st.last?.exercise ?? null, lastConfidence: st.last?.confidence ?? null }
       }))
+    if (m && m[2] === 'spotlight')
+      return json(r, evidence.length
+        ? { text: `Esta semana practicó ${evidence.length} veces y ya demostró ${new Set(evidence.filter((e) => e.ok).map((e) => e.skill)).size} habilidades.`, generated: true, generatedAt: new Date().toISOString() }
+        : { text: 'Esta semana todavía no hubo práctica.', generated: false, generatedAt: new Date().toISOString() })
     if (m && m[2] === 'evidence') return json(r, [...evidence].reverse().map((e) => ({ ...e, label: LABEL[e.skill] })))
     if (m && req.method() === 'DELETE') return r.fulfill({ status: 204, headers: CORS })
 
     if (path === '/api/tutor/turn') {
-      const t = req.postDataJSON() as { exerciseId: string; event: string; message?: string; evidence: Omit<Ev, 'exercise' | 'at'>[] }
+      const t = req.postDataJSON() as { exerciseId: string; event: string; message?: string; evidence: Omit<Ev, 'exercise' | 'at' | 'quote'>[] }
       let evs = t.evidence
       const ex = CATALOG.find((e) => e.id === t.exerciseId)
       // MockTutorModel's assessor: a reason word makes the explanation ok (medium confidence)
@@ -122,7 +127,8 @@ export async function mockApi(page: Page, opts: MockOptions = {}) {
         evs = [{ skill: ex.skills[0], ok, confidence: 'medium', detail: ok ? 'Dio una razón válida.' : 'Falta: una razón.' }]
       }
       const at = new Date().toISOString()
-      evs.forEach((e) => evidence.push({ ...e, exercise: t.exerciseId, at }))
+      const quote = ex?.llm && t.message ? t.message : null
+      evs.forEach((e) => evidence.push({ ...e, exercise: t.exerciseId, at, quote }))
       const next = opts.forceNext ? { exerciseId: opts.forceNext, skill: 'x', reason: 'Forzado.' } : plan(evidence)
       return json(r, { reply: 'Mirá bien lo que hiciste: ¿qué te dice cada parte?', evidence: evs, next })
     }
