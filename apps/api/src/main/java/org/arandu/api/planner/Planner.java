@@ -75,6 +75,8 @@ public final class Planner {
             case "fraction.notation" -> "notación a/b";
             case "fraction.compare" -> "comparar fracciones";
             case "fraction.equivalence" -> "fracciones equivalentes";
+            case "proportion.scale" -> "agrandar una receta";
+            case "proportion.unit-rate" -> "cuánto va para cada uno";
             default -> skill;
         };
     }
