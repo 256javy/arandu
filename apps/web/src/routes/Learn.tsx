@@ -236,12 +236,6 @@ function Mission({ learnerId, plan, done, stars, onComplete, onNext }: {
           <div aria-describedby="mission-intro">
             <exercise.Component state={state} onChange={onChange} disabled={busy || m.phase === 'done'} feedback={m.feedback} />
           </div>
-          {m.phase === 'done' && (
-            <div className="pop-in flex flex-col items-center gap-1 rounded-2xl bg-green-100 p-4 text-center text-green-950">
-              <p className="text-2xl font-bold">{COPY.done}</p>
-              {allDone && <p className="text-lg">{COPY.allDone}</p>}
-            </div>
-          )}
         </section>
 
         {/* desktop: Musi next to the visual, bubble pointing at it */}
@@ -261,6 +255,13 @@ function Mission({ learnerId, plan, done, stars, onComplete, onNext }: {
           submit()
         }}
       >
+        {/* in the dock so it is always above the fold */}
+        {m.phase === 'done' && (
+          <div role="status" className="pop-in flex flex-col items-center rounded-2xl bg-green-100 px-4 py-2 text-center text-green-950">
+            <p className="text-2xl font-bold">{COPY.done}</p>
+            {allDone && <p className="text-base">{COPY.allDone}</p>}
+          </div>
+        )}
         {/* phone/tablet: Musi + one-sentence bubble live in the dock */}
         <div className="flex items-center gap-3 lg:hidden">
           <div className="shrink-0"><MusiCharacter mood={mood} talking={talking || speech.speaking} className="size-14" /></div>
