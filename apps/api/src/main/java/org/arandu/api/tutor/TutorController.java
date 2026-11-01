@@ -100,7 +100,7 @@ public class TutorController {
         if (exercise.llmJudged() && "submitted".equals(req.event()) && !kidText.isBlank()) {
             try {
                 assessor.assess(exercise.rubric(), kidText).ifPresent(v -> items.add(
-                        new EvidenceItem(exercise.skills().getFirst(), v.ok(), "medium", v.reason())));
+                        new EvidenceItem(exercise.skills().getFirst(), v.ok(), "medium", v.detail())));
             } catch (RuntimeException ex) {
                 log.warn("assessment failed for {}", exercise.id(), ex);
             }

@@ -15,15 +15,32 @@ import tools.jackson.databind.ObjectMapper;
 @Component
 public class Assessor {
 
-    public record Verdict(boolean ok, String reason) {
+    /** {@code missing} is a short hint of what the kid still has to add, or empty when nothing is missing. */
+    public record Verdict(boolean ok, String reason, String missing) {
+
+        /** Evidence detail: the reason plus, when present, what is missing so Musi can guide. */
+        public String detail() {
+            return missing == null || missing.isBlank() ? reason : reason + " Falta: " + missing;
+        }
     }
 
     static final String SYSTEM = """
             Sos un evaluador de explicaciones de matemática de chicos de 9 a 12 años. Recibís una rúbrica y la \
             respuesta del chico. Decidí si la respuesta cumple la rúbrica, leyéndola en el contexto de la \
-            pregunta (el chico puede nombrar las cosas como aparecen en la pregunta en vez de usar números). Sé \
-            justo con la ortografía y las palabras informales: importa la idea. Respondé SOLO con JSON, sin texto extra: \
-            {"ok": true|false, "reason": "una oración en español que explique la decisión"}""";
+            pregunta (el chico puede nombrar las cosas como aparecen en la pregunta en vez de usar números).
+            Criterio:
+            - Importa la idea, no la forma. Ignorá faltas de ortografía, abreviaturas ("xq", "q"), falta de \
+            tildes y palabras informales.
+            - Una idea matemática correcta dicha con palabras propias cuenta como demostrada (ok true) aunque \
+            sea informal o le falte detalle. Por ejemplo "es la misma parte del total", "es la misma \
+            proporción", "ocupa lo mismo", "los pedazos son más chicos pero son más" son razones válidas.
+            - La respuesta correcta sin ninguna razón NO alcanza (ok false), aunque la respuesta sea correcta.
+            - Una razón falsa o que no tiene que ver (por ejemplo "porque 4 es más grande que 3", "porque tiene \
+            números más chicos") NO alcanza aunque llegue a la respuesta correcta.
+            - Pedir la respuesta, decir "no sé" o hablar de otra cosa NO alcanza.
+            Respondé SOLO con JSON, sin texto extra:
+            {"ok": true|false, "reason": "una oración en español que explique la decisión", \
+            "missing": "si ok es false, en pocas palabras qué le falta a la explicación; si ok es true, vacío"}""";
 
     private static final Pattern JSON = Pattern.compile("\\{.*}", Pattern.DOTALL);
 
@@ -52,7 +69,9 @@ public class Assessor {
             if (!n.has("ok") || !n.get("ok").isBoolean()) {
                 return Optional.empty();
             }
-            return Optional.of(new Verdict(n.get("ok").asBoolean(), n.path("reason").asString("")));
+            JsonNode missing = n.path("missing");
+            return Optional.of(new Verdict(n.get("ok").asBoolean(), n.path("reason").asString(""),
+                    missing.isString() ? missing.asString().strip() : ""));
         } catch (RuntimeException e) {
             return Optional.empty();
         }
