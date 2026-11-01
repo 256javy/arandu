@@ -103,8 +103,11 @@ async def run_acting_conversation(scenario: Scenario, persona: Persona, tutor: s
     def state_text() -> str:
         return f"[Apreté «Comprobar». Ahora: {sim.describe()}]"
 
+    saved: list = []  # checks already stored as evidence, like the API's learner model during a session
+
     async def tutor_reply() -> str:
-        live = live_scenario(scenario, sim)
+        live = live_scenario(scenario, sim, saved)
+        saved.extend(sim.check())
         if tutor == "arandu":
             msgs = build_messages(tutor, live, history, system_prompt=system_prompt, event="submitted")
         else:  # baselines get the same state, as text

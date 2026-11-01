@@ -60,8 +60,8 @@ def test_number_line_describe_matches_scenarios():
 
 def test_number_line_actions_and_screen_without_verdict():
     s = nl(0.75, 0.8, "brother")
-    assert s.apply("mover hermano izquierda mucho") is None and abs(s.pos["brother"] - 0.7) < 1e-9
-    assert s.apply("mover hermano izquierda poco") is None and abs(s.pos["brother"] - 0.67) < 1e-9
+    assert s.apply("mover hermano izquierda mucho") is None and abs(s.pos["brother"] - 0.65) < 1e-9
+    assert s.apply("mover hermano derecha poco") is None and abs(s.pos["brother"] - 0.7) < 1e-9
     assert s.apply("elegir mamá") is None and s.solved() and s.feedback() == "¡Eso es!"
     assert not any(w in s.screen() for w in ("lugar", "cerca", "bien", "mal"))
     assert NumberLine().apply("elegir mama") == "ese celular no está en la recta"
@@ -79,6 +79,24 @@ def test_recipe_mirrors_web():
     assert r.feedback() == "Mirá: ¿es la misma receta para todos?"
     assert r.apply("+ huevos") is None and r.apply("mas huevo") is None
     assert r.solved() and r.feedback() == "¡Alcanza para 8!" and r.describe().endswith("justo para 8.")
+
+
+def test_memory_counts_earlier_checks_like_the_api():
+    from arandu_evals.actions import live_scenario
+    from arandu_evals.tutors import context
+
+    sc = S.BY_ID["fractions.number-line-again"]
+    sim = NumberLine({"mom": 0.62, "brother": 0.78}, {"mom": True, "brother": True}, "brother")
+    first = live_scenario(sc, sim, [])
+    assert first.memory == sc.memory
+    later = live_scenario(sc, sim, [*sim.check(), *sim.check()])
+    ctx = context(later, "submitted")
+    assert ctx.endswith(
+        "\n- partes iguales: 2 de 2 bien, último intento en fractions.share-bar (lo podés usar como puente)"
+        "\n- comparar fracciones: 0 de 4 bien, último intento en fractions.number-line")
+    fresh = live_scenario(S.BY_ID["proportions.recipe"], Recipe({"flour": 4, "eggs": 6, "milk": 4}),
+                          [Recipe({"flour": 4, "eggs": 6, "milk": 4}).check()[0]])
+    assert "agrandar una receta: 0 de 1 bien, último intento en proportions.recipe" in context(fresh, "submitted")
 
 
 def test_parse_move():
@@ -115,7 +133,7 @@ class FakeLLM:
 
 async def test_acting_kid_solves_and_conversation_stops():
     kid = FakeLLM(["HAGO: mover hermano izquierda mucho\nDIGO: mi 0981 123 456",
-                   "HAGO: mover hermano izquierda poco\nHAGO: elegir mama"] * 2)  # one pair per tutor
+                   "HAGO: mover hermano derecha poco\nHAGO: elegir mama"] * 2)  # one pair per tutor
     tutor, judge_llm = FakeLLM(["¿Cuál batería se ve más llena?"]), FakeLLM([json.dumps(GOOD)])
     specs = build_specs(repeats=1, kid_turns=4, personas=["copier"], scenarios=["fractions.number-line"],
                         tutors=["arandu", "socratic"])
@@ -135,7 +153,7 @@ async def test_acting_kid_solves_and_conversation_stops():
     assert "[Apreté «Comprobar». Ahora: Recta de 0 a 1" in socratic_calls[0][-1]["content"]
 
     case = render_case(S.BY_ID["fractions.number-line"], by["arandu"]["turns"])
-    assert "Kid 2: [did: mover hermano izquierda poco; elegir mama] -> exercise now:" in case
+    assert "Kid 2: [did: mover hermano derecha poco; elegir mama] -> exercise now:" in case
     assert "(SOLVED)" in case and "Outcome: solved at kid turn 2." in case
 
     stats = {s.tutor: s for s in aggregate(records)}
