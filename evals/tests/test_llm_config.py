@@ -47,7 +47,11 @@ def test_make_clients_mixes_providers(monkeypatch):
     clients = make_clients({"kid": RoleConfig("glimmer", "muse-glimmer"), "tutor": RoleConfig("meta", "x"),
                             "judge": RoleConfig("meta", "x")})
     assert clients["kid"].provider == "glimmer"
-    assert clients["tutor"] is clients["judge"]
+    # Same provider, effort and budget share one client; the tutor keeps the product's 2000-token budget.
+    assert clients["tutor"] is not clients["judge"]
+    assert clients["tutor"]._max_tokens == 2000 and clients["judge"]._max_tokens == 4000
+    same = make_clients({"kid": RoleConfig("meta", "x"), "tutor": RoleConfig("meta", "x"), "judge": RoleConfig("meta", "x")})
+    assert same["kid"] is same["judge"]
 
 
 def test_check_glimmer_config_exits_without_base_url():

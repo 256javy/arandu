@@ -187,11 +187,16 @@ async def resolve_roles(requested: dict[str, str]) -> tuple[dict[str, RoleConfig
 def make_clients(roles: dict[str, RoleConfig], efforts: dict[str, str] | None = None) -> dict[str, LLM]:
     """`efforts` overrides reasoning_effort per role (default "low"), like the API's per-role settings."""
     efforts = efforts or {}
-    cache: dict[tuple[str, str], LLM] = {}
+    cache: dict[tuple[str, str, int], LLM] = {}
     out: dict[str, LLM] = {}
     for role, cfg in roles.items():
-        key = (cfg.provider, efforts.get(role, "low"))
+        key = (cfg.provider, efforts.get(role, "low"), ROLE_MAX_TOKENS.get(role, 2000))
         if key not in cache:
-            cache[key] = OpenAICompatLLM(PROVIDERS[cfg.provider], reasoning_effort=key[1])
+            cache[key] = OpenAICompatLLM(PROVIDERS[cfg.provider], reasoning_effort=key[1], max_tokens=key[2])
         out[role] = cache[key]
     return out
+
+
+# The acting kid reasons at length about the screen and ran out of tokens on reasoning (finish_reason=length,
+# empty content) at 2000; the tutor keeps the product's budget.
+ROLE_MAX_TOKENS = {"kid": 4000, "judge": 4000}
