@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures.ts'
 import { center, drag, isTouch, pointAt, register, tap, waitReply } from './helpers.ts'
 import { mockApi, REAL } from './mock-api.ts'
 
