@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Check, Plus, RotateCcw } from 'lucide-react'
+import { Check, Plus } from 'lucide-react'
 import { flyFrom, knifeDown, popIn, pulse, shake, snapTo, tapHint } from '@/lib/fx'
 import { Face, MiniPizza, PizzaArt } from './visuals/Pizza'
 import type { Evidence, ExerciseDefinition, ExerciseProps } from './types'
@@ -375,9 +375,6 @@ function ShareBar({ state, onChange, disabled, feedback, highlight }: ExercisePr
           <button type="button" aria-label="Agregar corte" disabled={disabled} onClick={() => commitCuts([...state.cuts, cutAtLargest(state.cuts)], true)} className="grid size-12 place-items-center rounded-full border-2 border-amber-800 bg-white text-amber-900 shadow-sm active:scale-95 disabled:opacity-50">
             <Plus className="size-6" />
           </button>
-          <button type="button" aria-label="Empezar de nuevo" disabled={disabled || state.cuts.length === 0} onClick={() => emit({ cuts: [], num: '', den: '' })} className="grid size-12 place-items-center rounded-full border-2 border-stone-500 bg-white text-stone-800 shadow-sm active:scale-95 disabled:opacity-50">
-            <RotateCcw className="size-6" />
-          </button>
         </div>
       )}
 
@@ -423,19 +420,21 @@ export const shareBar: ExerciseDefinition<ShareBarState> = {
   mode: 'manipulable',
   skills: ['fraction.equal-parts', 'fraction.notation'],
   title: 'Repartir una pizza',
-  goal: 'Cortar la barra en 4 partes iguales para repartirla entre 4 amigos y nombrar la parte de uno con una fracción.',
+  goal: 'Cortar la pizza en 4 partes iguales para repartirla entre 4 amigos y nombrar la parte de uno con una fracción.',
   prompt: 'Repartí la pizza entre 4.',
-  intro: 'Tenés una pizza larga y llegan tres amigos más. Tocá la barra para cortarla, así a los cuatro les toca lo mismo. Cuando termines, apretá «Comprobar».',
-  firstBubble: '¡Tocá para cortar!',
+  intro: 'Tenés una pizza larga y llegan tres amigos más. Tocá la pizza para cortarla, así a los cuatro les toca lo mismo. Cuando termines, apretá «Comprobar».',
+  firstBubble: '¡Tocá la pizza para cortarla!',
   answer: 'action',
   // 'cut' until the 4 parts are equal, then 'notation' (name Leo's piece).
   step: (s) => (isEqualSplit(s) ? 'notation' : 'cut'),
   canSubmit: (s) => (isEqualSplit(s) ? !!(s.num.trim() && s.den.trim()) : s.cuts.length > 0),
   localFeedback: (ev) => {
     const bad = ev.find((e) => !e.ok)
-    if (!bad) return '¡Eso es!'
-    return bad.skill === 'fraction.notation' ? 'Casi. Contá los pedazos de nuevo.' : 'Mmm, ¿les toca lo mismo a todos?'
+    if (!bad) return ev.some((e) => e.skill === 'fraction.notation') ? '¡Eso es!' : '¡Cuatro partes iguales!'
+    if (bad.skill === 'fraction.notation') return 'Contá los pedazos de toda la pizza.'
+    return /en lugar de 4/.test(bad.detail) ? 'Mmm, contá los pedazos.' : 'Fijate: ¿son todos del mismo tamaño?'
   },
+  stepCopy: { notation: { prompt: '¿Qué parte se llevó Leo?', bubble: 'Armala con las fichas.' } },
   initialState: () => ({ cuts: [], num: '', den: '' }),
   describe,
   check,

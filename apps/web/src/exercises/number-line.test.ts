@@ -53,3 +53,13 @@ describe('number-line tray and crown', () => {
     expect(culprits(s(0.75, 0.67, 'mom'))).toEqual([])
   })
 })
+
+describe('number-line step', () => {
+  it('moves to choose once both phones are on the line', () => {
+    const init = numberLine.initialState()
+    expect(numberLine.step!(init)).toBe('place')
+    expect(numberLine.step!(dropPhone(init, 'mom', 0.7))).toBe('place')
+    expect(numberLine.step!(dropPhone(dropPhone(init, 'mom', 0.7), 'brother', 0.6))).toBe('choose')
+    expect(numberLine.stepCopy?.choose.bubble).toBe('¿Cuál dura más? Tocalo.')
+  })
+})

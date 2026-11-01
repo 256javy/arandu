@@ -48,7 +48,7 @@ export function confetti(origin: HTMLElement, n = 24) {
   }
 }
 
-/** Encaje: late una vez (escala). Reduced motion: destello de borde verde. */
+/** Snap: the element beats once (scale). Reduced motion: a green outline flash. */
 export function pulse(el: Element) {
   if (reduced()) {
     el.animate([{ outlineColor: 'transparent' }, { outlineColor: '#15803d' }, { outlineColor: 'transparent' }], { duration: 500 })
@@ -57,7 +57,7 @@ export function pulse(el: Element) {
   el.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.04)' }, { transform: 'scale(1)' }], { duration: 280, easing: 'ease-out' })
 }
 
-/** FLIP: el elemento vuela desde un desplazamiento (dx, dy) hasta su lugar con rebote. Reduced motion: no se mueve. */
+/** FLIP: the element flies from an offset (dx, dy) into place with a bounce. Reduced motion: no movement. */
 export function flyFrom(el: Element, dx: number, dy: number, duration = 320) {
   if (reduced()) return
   el.animate([{ transform: `translate(${dx}px,${dy}px) scale(1.1)` }, { transform: 'translate(0,0) scale(1)' }], {
@@ -66,13 +66,13 @@ export function flyFrom(el: Element, dx: number, dy: number, duration = 320) {
   })
 }
 
-/** Corte que aparece: el cuchillo baja (scaleY desde arriba). Reduced motion: no anima. */
+/** A new cut: the knife drops in (scaleY from the top). Reduced motion: no animation. */
 export function knifeDown(el: HTMLElement, duration = 150) {
   if (reduced()) return
   el.animate([{ transform: 'scaleY(0)', transformOrigin: 'top' }, { transform: 'scaleY(1)', transformOrigin: 'top' }], { duration, easing: 'ease-out' })
 }
 
-/** Pista de "tocá acá": la mano baja y sube dos veces y se queda. Reduced motion: no se mueve. */
+/** "Tap here" hint: the hand taps twice and stays. Reduced motion: no movement. */
 export function tapHint(el: HTMLElement) {
   if (reduced()) return
   el.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(10px) scale(.92)' }, { transform: 'translateY(0)' }], {

@@ -61,3 +61,13 @@ describe('share-bar interactions', () => {
     expect(placeTile(s([], '', ''), 2, 'den')).toMatchObject({ num: '', den: '2' })
   })
 })
+
+describe('share-bar copy', () => {
+  it('picks the local feedback by culprit', () => {
+    expect(shareBar.localFeedback(shareBar.check(s([0.5])))).toBe('Mmm, contá los pedazos.')
+    expect(shareBar.localFeedback(shareBar.check(s([0.4, 0.5, 0.75])))).toBe('Fijate: ¿son todos del mismo tamaño?')
+    expect(shareBar.localFeedback(shareBar.check(s([0.25, 0.5, 0.75])))).toBe('¡Cuatro partes iguales!')
+    expect(shareBar.localFeedback(shareBar.check(s([0.25, 0.5, 0.75], '1', '3')))).toBe('Contá los pedazos de toda la pizza.')
+    expect(shareBar.stepCopy?.notation.prompt).toBe('¿Qué parte se llevó Leo?')
+  })
+})
