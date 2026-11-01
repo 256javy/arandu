@@ -51,9 +51,10 @@ async def resolve(requested: dict[str, str]) -> dict:
     """Probes providers from inside Modal, where the keys live."""
     from dataclasses import asdict
 
-    from arandu_evals.llm import resolve_roles
+    from arandu_evals.llm import resolve_roles, warm_up_roles
 
     roles, notes = await resolve_roles(requested)
+    await warm_up_roles(roles)  # wakes the Glimmer server once instead of in every fanned-out call
     return {"roles": {k: asdict(v) for k, v in roles.items()}, "notes": notes}
 
 
@@ -70,13 +71,15 @@ async def run_one(spec: dict, roles: dict[str, dict]) -> dict:
 @app.local_entrypoint()
 def main(repeats: int = 1, kid_turns: int = 4, kid_provider: str = "auto", tutor_provider: str = "meta",
          judge_provider: str = "meta", scenarios: str = "", personas: str = "", tutors: str = ""):
-    from arandu_evals.llm import RoleConfig
+    from arandu_evals.llm import RoleConfig, check_glimmer_config
     from arandu_evals.runner import build_specs, new_run_dir, write_results
 
     def csv(v: str) -> list[str] | None:
         return [x for x in v.split(",") if x] or None
 
-    resolved = resolve.remote({"kid": kid_provider, "tutor": tutor_provider, "judge": judge_provider})
+    requested = {"kid": kid_provider, "tutor": tutor_provider, "judge": judge_provider}
+    check_glimmer_config(requested, required=("GLIMMER_BASE_URL",))  # the key comes from the Modal Secret
+    resolved = resolve.remote(requested)
     for n in resolved["notes"]:
         print(f"note: {n}")
     specs = build_specs(repeats=repeats, kid_turns=kid_turns, scenarios=csv(scenarios),

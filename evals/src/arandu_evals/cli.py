@@ -9,7 +9,7 @@ import sys
 
 from . import personas as P
 from . import scenarios as S
-from .llm import PROVIDER_CHOICES, ROLES, make_clients, resolve_roles
+from .llm import PROVIDER_CHOICES, ROLES, check_glimmer_config, make_clients, resolve_roles, warm_up_roles
 from .runner import build_specs, new_run_dir, run_all, write_results
 from .tutors import TUTORS
 
@@ -37,10 +37,13 @@ def parser() -> argparse.ArgumentParser:
 
 
 async def _run(args: argparse.Namespace) -> int:
-    roles, notes = await resolve_roles({r: getattr(args, f"{r}_provider") for r in ROLES})
+    requested = {r: getattr(args, f"{r}_provider") for r in ROLES}
+    check_glimmer_config(requested)
+    roles, notes = await resolve_roles(requested)
     for n in notes:
         print(f"note: {n}", file=sys.stderr)
     clients = make_clients(roles)
+    await warm_up_roles(roles)
     specs = build_specs(repeats=args.repeats, kid_turns=args.kid_turns, scenarios=_csv(args.scenarios),
                         personas=_csv(args.personas), tutors=_csv(args.tutors))
     print(f"{len(specs)} conversations; " + ", ".join(f"{r}={c.provider}/{c.model}" for r, c in roles.items()),
