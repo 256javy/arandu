@@ -71,9 +71,20 @@ public class VisionController {
         if (mediaType == null) {
             throw new ResponseStatusException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "only jpeg, png or webp");
         }
-        if (!limiter.tryAcquire(learner.getAccountId())) {
-            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "too many photos, try later");
+        if (!limiter.tryEnter(learner.getAccountId())) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "a photo is already being analyzed");
         }
+        try {
+            if (!limiter.tryAcquire(learner.getAccountId())) {
+                throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "too many photos, try later");
+            }
+            return segment(bytes, mediaType, hint);
+        } finally {
+            limiter.exit(learner.getAccountId());
+        }
+    }
+
+    private SamOutput.Portions segment(byte[] bytes, String mediaType, String hint) {
         try {
             String prompt = hint == null || hint.isBlank() ? DEFAULT_PROMPT : PROMPTS.get(hint);
             SamOutput.Portions out = SamOutput.parse(sam.segment(bytes, mediaType, prompt), prompt);
@@ -81,7 +92,7 @@ public class VisionController {
                 out = SamOutput.parse(sam.segment(bytes, mediaType, FALLBACK_PROMPT), FALLBACK_PROMPT);
             }
             return out;
-        } catch (SamClient.SamUnavailableException e) {
+        } catch (SamClient.SamUnavailableException | NumberFormatException e) {
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "segmentation unavailable");
         }
     }

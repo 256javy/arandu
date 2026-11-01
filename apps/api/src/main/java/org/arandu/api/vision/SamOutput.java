@@ -23,8 +23,8 @@ public final class SamOutput {
     }
 
     private static final Pattern RECORD = Pattern.compile(
-            "(\\d+)<\\|box;x1=(\\d+);y1=(\\d+);x2=(\\d+);y2=(\\d+);w=(\\d+);h=(\\d+)(?:;c=([\\d.]+))?\\|>"
-                    + "<\\|mask;x=0;y=0(?:;c=[\\d.]+)?;data=(\\d+),(\\d+),([~!])([^|]*)\\|>");
+            "(\\d{1,6})<\\|box;x1=(\\d{1,6});y1=(\\d{1,6});x2=(\\d{1,6});y2=(\\d{1,6});w=(\\d{1,6});h=(\\d{1,6})(?:;c=([\\d.]{1,24}))?\\|>"
+                    + "<\\|mask;x=0;y=0(?:;c=[\\d.]{1,24})?;data=(\\d{1,6}),(\\d{1,6}),([~!])([^|]*)\\|>");
 
     private SamOutput() {
     }

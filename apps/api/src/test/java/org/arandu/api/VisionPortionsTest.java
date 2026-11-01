@@ -174,6 +174,29 @@ class VisionPortionsTest {
     }
 
     @Test
+    void malformedSamOutputIsABadGateway() throws Exception {
+        String[] a = signupWithLearner();
+        // Six-digit groups fit the grammar but 1.2.3 is not a number.
+        when(sam.segment(any(), anyString(), anyString())).thenReturn(
+                "0<|box;x1=1;y1=1;x2=5;y2=5;w=10;h=10;c=1.2.3|><|mask;x=0;y=0;data=4,4,!abc|>");
+        mvc.perform(multipart("/api/vision/portions").file(image(JPEG)).param("hint", "cake")
+                        .param("learnerId", a[1]).header("Authorization", a[0]))
+                .andExpect(status().isBadGateway());
+    }
+
+    @Test
+    void limiterCapsRequestsInFlight() {
+        HourlyRateLimiter l = new HourlyRateLimiter(20, 2, Clock.systemUTC());
+        UUID acc = UUID.randomUUID();
+        assertThat(l.tryEnter(acc)).isTrue();
+        assertThat(l.tryEnter(acc)).isTrue();
+        assertThat(l.tryEnter(acc)).isFalse();
+        l.exit(acc);
+        assertThat(l.tryEnter(acc)).isTrue();
+        assertThat(l.tryEnter(UUID.randomUUID())).isTrue();
+    }
+
+    @Test
     void limiterWindowSlides() {
         Instant t0 = Instant.parse("2026-11-01T10:00:00Z");
         Clock[] clock = {Clock.fixed(t0, ZoneOffset.UTC)};
