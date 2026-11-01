@@ -17,7 +17,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.arandu.api.family.SpotlightRepository;
+import org.arandu.api.family.SpotlightService;
 import org.arandu.api.learner.EvidenceRepository;
 import org.arandu.api.tutor.TutorConfig;
 import org.arandu.api.tutor.TutorModel;
@@ -48,6 +54,9 @@ class SpotlightTest {
 
     @Autowired
     SpotlightRepository spotlights;
+
+    @Autowired
+    SpotlightService spotlightService;
 
     @MockitoBean(name = TutorConfig.SPOTLIGHT)
     TutorModel spotlightModel;
@@ -123,6 +132,50 @@ class SpotlightTest {
         mvc.perform(delete("/api/learners/" + id).header("Authorization", auth)).andExpect(status().isNoContent());
         assertThat(spotlights.findById(learnerId)).isEmpty();
         assertThat(evidence.findByLearnerIdOrderByCreatedAtAsc(learnerId)).isEmpty();
+    }
+
+    @Test
+    void modelFailureBacksOffWithoutCallingTheModelAgain() throws Exception {
+        when(spotlightModel.complete(anyList())).thenThrow(new IllegalStateException("model down"));
+        String auth = signup();
+        String id = learner(auth);
+        explain(auth, id, "son la mitad");
+        for (int i = 0; i < 3; i++) {
+            mvc.perform(get("/api/learners/" + id + "/spotlight").header("Authorization", auth))
+                    .andExpect(status().isBadGateway());
+        }
+        verify(spotlightModel, times(1)).complete(anyList());
+    }
+
+    @Test
+    void concurrentRequestsShareOneGeneration() throws Exception {
+        CountDownLatch started = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        when(spotlightModel.complete(anyList())).thenAnswer(inv -> {
+            started.countDown();
+            release.await(10, TimeUnit.SECONDS);
+            return "Resumen compartido.";
+        });
+        String auth = signup();
+        String id = learner(auth);
+        explain(auth, id, "son la mitad");
+        UUID learnerId = UUID.fromString(id);
+        try (ExecutorService pool = Executors.newFixedThreadPool(4)) {
+            Future<SpotlightService.SpotlightView> first = pool.submit(() -> spotlightService.spotlight(learnerId));
+            assertThat(started.await(10, TimeUnit.SECONDS)).isTrue();
+            List<Future<SpotlightService.SpotlightView>> others = List.of(
+                    pool.submit(() -> spotlightService.spotlight(learnerId)),
+                    pool.submit(() -> spotlightService.spotlight(learnerId)),
+                    pool.submit(() -> spotlightService.spotlight(learnerId)));
+            Thread.sleep(200);
+            release.countDown();
+            assertThat(first.get(10, TimeUnit.SECONDS).text()).isEqualTo("Resumen compartido.");
+            for (Future<SpotlightService.SpotlightView> f : others) {
+                assertThat(f.get(10, TimeUnit.SECONDS).text()).isEqualTo("Resumen compartido.");
+            }
+        }
+        verify(spotlightModel, times(1)).complete(anyList());
+        assertThat(spotlights.findById(learnerId)).isPresent();
     }
 
     @Test

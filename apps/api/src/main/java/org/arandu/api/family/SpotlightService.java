@@ -6,6 +6,9 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import org.arandu.api.learner.Evidence;
 import org.arandu.api.learner.LearnerService;
 import org.arandu.api.planner.ExerciseCatalog;
@@ -14,7 +17,6 @@ import org.arandu.api.tutor.TutorConfig;
 import org.arandu.api.tutor.TutorModel;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * "Esta semana": a short summary for the adult, written by Muse Spark from the last 7 days of evidence,
@@ -31,6 +33,10 @@ public class SpotlightService {
     static final Duration MAX_AGE = Duration.ofHours(24);
     static final int MAX_ITEMS = 20;
     static final int MAX_CHARS = 700;
+    static final Duration BACKOFF = Duration.ofSeconds(60);
+
+    private final ConcurrentHashMap<UUID, CompletableFuture<SpotlightView>> inFlight = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<UUID, Instant> failedAt = new ConcurrentHashMap<>();
 
     static final String EMPTY = "Esta semana todavía no hubo práctica. Cuando tu hijo/a haga algunas misiones, "
             + "acá vas a ver qué demostró, con sus propias palabras.";
@@ -65,8 +71,34 @@ public class SpotlightService {
         this.model = model;
     }
 
-    @Transactional
+    /**
+     * Not transactional on purpose: the model call can take seconds and must not hold a connection. Concurrent
+     * requests for the same learner share one generation; after a model failure the learner gets a fast error
+     * for {@link #BACKOFF} instead of another model call.
+     */
     public SpotlightView spotlight(UUID learnerId) {
+        CompletableFuture<SpotlightView> mine = new CompletableFuture<>();
+        CompletableFuture<SpotlightView> running = inFlight.putIfAbsent(learnerId, mine);
+        if (running != null) {
+            try {
+                return running.join();
+            } catch (CompletionException ex) {
+                throw ex.getCause() instanceof RuntimeException re ? re : ex;
+            }
+        }
+        try {
+            SpotlightView view = generate(learnerId);
+            mine.complete(view);
+            return view;
+        } catch (RuntimeException ex) {
+            mine.completeExceptionally(ex);
+            throw ex;
+        } finally {
+            inFlight.remove(learnerId, mine);
+        }
+    }
+
+    private SpotlightView generate(UUID learnerId) {
         Instant now = Instant.now();
         List<Evidence> week = learners.history(learnerId).stream()
                 .filter(e -> e.getCreatedAt().isAfter(now.minus(WINDOW)))
@@ -80,13 +112,25 @@ public class SpotlightService {
                 && cached.get().getCreatedAt().isAfter(now.minus(MAX_AGE))) {
             return new SpotlightView(cached.get().getText(), true, cached.get().getCreatedAt());
         }
-        String text = clip(model.complete(List.of(
-                new TutorModel.Message("system", SYSTEM),
-                new TutorModel.Message("user", facts(week, Planner.next(learners.model(learnerId)))))));
-        if (text.isBlank()) {
-            throw new IllegalStateException("empty spotlight");
+        Instant failed = failedAt.get(learnerId);
+        if (failed != null && failed.isAfter(now.minus(BACKOFF))) {
+            throw new IllegalStateException("spotlight backing off after a model failure");
         }
-        cache.save(new Spotlight(learnerId, text, latest, now));
+        String userFacts = facts(week, Planner.next(learners.model(learnerId)));
+        String text;
+        try {
+            text = clip(model.complete(List.of(
+                    new TutorModel.Message("system", SYSTEM),
+                    new TutorModel.Message("user", userFacts))));
+            if (text.isBlank()) {
+                throw new IllegalStateException("empty spotlight");
+            }
+        } catch (RuntimeException ex) {
+            failedAt.put(learnerId, Instant.now());
+            throw ex;
+        }
+        failedAt.remove(learnerId);
+        cache.upsert(learnerId, text, latest, now);
         return new SpotlightView(text, true, now);
     }
 
