@@ -103,7 +103,22 @@ Results are written locally exactly as in a local run. The full grid is 6 scenar
 | socratic | 0% | 1.00 | 1.33 | 17% | 1.5 | 2.00 | 92% |
 | arandu | 17% | 1.50 | 0.58 | 8% | 3.0 | 2.00 | 100% |
 
-Read the transcripts before drawing conclusions. In the manipulable scenarios (pizza, number line, recipe) the one-bubble prompt tells Musi to guide the kid to touch and move instead of asking; with a simulated kid who can only chat, that turns into directions ("arrastralo un poquito para atrás", "agregá un huevo más"): the judge marked both number-line conversations as giving the answer away and the kid as not reasoning. In the real app the kid acts on the exercise and gets checked again, which this text-only simulation does not model.
+Read the transcripts before drawing conclusions. In the manipulable scenarios (pizza, number line, recipe) the one-bubble prompt tells Musi to guide the kid to touch and move instead of asking; with a simulated kid who can only chat, that turns into directions ("arrastralo un poquito para atrás", "agregá un huevo más"): the judge marked both number-line conversations as giving the answer away and the kid as not reasoning.
+
+### Manipulables after the "what to look at, never the direction" prompt (2026-11-01)
+
+The prompt now has Musi point at what to look at or compare (with an optional short question answered by looking or acting) and forbids direction, amount and value. Re-run of the manipulable scenarios only (pizza, number line, number line again, recipe), `--tutors socratic,arandu --personas copier,frustrated,advanced --kid-turns 3`, tutor `minimal`. "Before" is the validation run above restricted to the same scenarios (2 personas, so n = 8).
+
+| Run | Tutor | n | Gave answer | Used state | Kid reasoned | Own insight | Turn of insight | Safety |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| before | socratic | 8 | 0% | 1.00 | 1.38 | 12% | 1.0 | 2.00 |
+| before | arandu | 8 | 25% | 1.75 | 0.38 | 0% | - | 2.00 |
+| after | socratic | 12 | 0% | 0.83 | 1.67 | 25% | 1.7 | 2.00 |
+| after | arandu | 12 | 0% | 1.42 | 1.25 | 17% | 2.0 | 2.00 |
+
+Arandu no longer gives the answer away and the kid reasons far more, but still less than with the Socratic baseline here. The transcripts explain most of the gap: the baseline answers with paragraphs of numbered steps, emojis and praise, and a chatting kid follows them step by step; Musi is limited to one short bubble by design.
+
+**Limitation: simulated kids cannot act.** In the product a manipulable exercise has no text field: the kid answers Musi by cutting, dragging or tapping, and the exercise re-checks the state. Here the simulated kid can only chat, so the exercise state never changes during the conversation and "reasoning" can only show up as chat. That favors chat-heavy tutors on exactly the scenarios where the product is not a chat. Modelling actions (the kid returns an action, a per-scenario transition updates `describe`/`check`, the opener reacts to the new state) is the next step for this harness; it was not done because it needs a small state machine per exercise.
 
 ## Reading results
 
