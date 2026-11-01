@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Navigate, useNavigate } from '@tanstack/react-router'
-import { Trash2 } from 'lucide-react'
+import { Sparkles, Trash2 } from 'lucide-react'
 import {
   createLearner,
   deleteLearner,
@@ -9,6 +9,7 @@ import {
   getMastery,
   getMe,
   getNext,
+  getSpotlight,
   getStoredLearnerId,
   getToken,
   logout,
@@ -127,6 +128,46 @@ export function Family() {
   )
 }
 
+/** "Esta semana": a short summary for the adult, written by Arandu from this week's evidence. */
+function SpotlightCard({ learnerId }: { learnerId: string }) {
+  const spotlight = useQuery({
+    queryKey: ['spotlight', learnerId],
+    queryFn: () => getSpotlight(learnerId),
+    retry: 1,
+    staleTime: 60_000,
+  })
+  return (
+    <Card className="border-primary/40 bg-primary/5 lg:col-span-2" aria-live="polite" aria-busy={spotlight.isPending}>
+      <CardHeader><CardTitle className="flex items-center gap-2"><Sparkles aria-hidden className="size-5" /> Esta semana</CardTitle></CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        {spotlight.isPending && (
+          <div className="flex flex-col gap-2" aria-label="Preparando el resumen de la semana">
+            <div className="h-4 w-full animate-pulse rounded bg-muted" />
+            <div className="h-4 w-11/12 animate-pulse rounded bg-muted" />
+            <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
+          </div>
+        )}
+        {spotlight.isError && (
+          <div role="alert" className="flex flex-wrap items-center gap-3">
+            <p className="text-red-700">No pudimos preparar el resumen de la semana.</p>
+            <Button variant="outline" onClick={() => void spotlight.refetch()} disabled={spotlight.isFetching}>
+              Reintentar
+            </Button>
+          </div>
+        )}
+        {spotlight.data && (
+          <>
+            <p className="text-lg leading-relaxed">{spotlight.data.text}</p>
+            {spotlight.data.generated && (
+              <p className="text-sm text-muted-foreground">Resumen escrito por Arandu a partir de lo que demostró en los últimos 7 días.</p>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 function LearnerProgress({ learner }: { learner: Learner }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
@@ -144,6 +185,7 @@ function LearnerProgress({ learner }: { learner: Learner }) {
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
+      <SpotlightCard learnerId={learner.id} />
       <Card>
         <CardHeader className="flex-row flex-wrap items-center justify-between gap-2">
           <CardTitle>Progreso de {learner.nickname}</CardTitle>
@@ -208,6 +250,11 @@ function LearnerProgress({ learner }: { learner: Learner }) {
                 <p className="font-semibold">
                   {e.ok ? '✓' : '✗'} {e.label} <span className="font-normal text-muted-foreground">· {exerciseTitle(e.exercise)} · {fmtDate(e.at)}</span>
                 </p>
+                {e.quote && (
+                  <blockquote className="my-1 rounded-md bg-muted px-3 py-2 text-base italic">
+                    «{e.quote}»
+                  </blockquote>
+                )}
                 <p className="text-sm">{e.detail} <span className="text-muted-foreground">(confianza {CONFIDENCE[e.confidence]})</span></p>
               </li>
             ))}
