@@ -26,8 +26,14 @@ const clamp = (n: number) => Math.min(0.99, Math.max(0.01, n))
 
 function describe(state: ShareBarState): string {
   const parts = partsOf(state)
-  const sizes = parts.map((p) => `${Math.round(p * 100)}%`).join(', ')
-  let text = `La barra tiene ${parts.length} ${parts.length === 1 ? 'parte' : 'partes'} de tamaños ${sizes}.`
+  let text = `La pizza tiene ${parts.length} ${parts.length === 1 ? 'pedazo' : 'pedazos'}`
+  if (parts.length === 1) text += ' (sin cortar).'
+  else if (parts.every((p) => Math.abs(p - 1 / parts.length) <= TOLERANCE)) text += ', todos iguales.'
+  else {
+    const max = Math.max(...parts)
+    const min = Math.min(...parts)
+    text += max > 2 * min ? ', y algunos son mucho más grandes que otros.' : ', y no son todos iguales: algunos son un poco más grandes.'
+  }
   if (isEqualSplit(state) && (state.num || state.den)) {
     text += ` Para la parte de Leo escribió ${state.num || '?'}/${state.den || '?'}.`
   }
@@ -56,7 +62,7 @@ function check(state: ShareBarState): Evidence[] {
   return evidence
 }
 
-function ShareBar({ state, onChange, onSubmit, disabled }: ExerciseProps<ShareBarState>) {
+function ShareBar({ state, onChange, disabled }: ExerciseProps<ShareBarState>) {
   const barRef = useRef<HTMLDivElement>(null)
   const dragging = useRef<number | null>(null)
   const equal = isEqualSplit(state)
@@ -168,7 +174,6 @@ function ShareBar({ state, onChange, onSubmit, disabled }: ExerciseProps<ShareBa
         <Button variant="outline" onClick={() => onChange({ cuts: [], num: '', den: '' })} disabled={disabled}>
           Empezar de nuevo
         </Button>
-        <Button size="lg" onClick={() => onSubmit()} className="ml-auto" disabled={disabled}>Listo</Button>
       </div>
     </div>
   )
@@ -180,7 +185,18 @@ export const shareBar: ExerciseDefinition<ShareBarState> = {
   skills: ['fraction.equal-parts', 'fraction.notation'],
   title: 'Repartir una pizza',
   goal: 'Cortar la barra en 4 partes iguales para repartirla entre 4 amigos y nombrar la parte de uno con una fracción.',
-  intro: 'Tenés una pizza larga y llegan tres amigos más. Tocá la barra para cortarla, así a los cuatro les toca lo mismo. Cuando termines, apretá «Listo».',
+  prompt: 'Repartí la pizza entre 4.',
+  intro: 'Tenés una pizza larga y llegan tres amigos más. Tocá la barra para cortarla, así a los cuatro les toca lo mismo. Cuando termines, apretá «Comprobar».',
+  firstBubble: '¡Tocá para cortar!',
+  answer: 'action',
+  // 'cut' until the 4 parts are equal, then 'notation' (name Leo's piece).
+  step: (s) => (isEqualSplit(s) ? 'notation' : 'cut'),
+  canSubmit: (s) => (isEqualSplit(s) ? !!(s.num.trim() && s.den.trim()) : s.cuts.length > 0),
+  localFeedback: (ev) => {
+    const bad = ev.find((e) => !e.ok)
+    if (!bad) return '¡Eso es!'
+    return bad.skill === 'fraction.notation' ? 'Casi. Contá los pedazos de nuevo.' : 'Mmm, ¿les toca lo mismo a todos?'
+  },
   initialState: () => ({ cuts: [], num: '', den: '' }),
   describe,
   check,

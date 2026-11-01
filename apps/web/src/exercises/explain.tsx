@@ -1,16 +1,16 @@
-import { Button } from '@/components/ui/button'
 import type { ExerciseDefinition, ExerciseProps } from './types'
 
-export interface ExplainState {
-  text: string
-}
+/** The kid's text lives in Learn's dock (`answer: 'text'`); the visual has no state of its own. */
+export type ExplainState = Record<string, never>
 
 interface Variant {
   id: string
   skill: string
   title: string
   prompt: string
+  goal: string
   intro: string
+  firstBubble: string
   visual: React.ReactNode
 }
 
@@ -28,34 +28,13 @@ function Bar({ parts, filled, label }: { parts: number; filled: number; label: s
 }
 
 function makeExplain(v: Variant): ExerciseDefinition<ExplainState> {
-  function Explain({ state, onChange, onSubmit, disabled }: ExerciseProps<ExplainState>) {
-    const id = `${v.id}-answer`
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  function Explain(_: ExerciseProps<ExplainState>) {
     return (
-      <form
-        className="flex flex-col gap-5"
-        onSubmit={(e) => {
-          e.preventDefault()
-          if (state.text.trim()) onSubmit(state.text.trim())
-        }}
-      >
-        <p className="text-lg">{v.prompt}</p>
+      <div className="flex flex-col gap-5">
+        <p className="text-lg">{v.goal}</p>
         <div className="flex flex-col gap-2">{v.visual}</div>
-        <label htmlFor={id} className="font-semibold">Explicalo con tus palabras</label>
-        <textarea
-          id={id}
-          rows={4}
-          maxLength={600}
-          value={state.text}
-          disabled={disabled}
-          onChange={(e) => onChange({ text: e.target.value })}
-          placeholder="Yo creo que… porque…"
-          className="rounded-lg border-2 border-border bg-card p-3 text-base"
-        />
-        <div className="flex flex-wrap items-center gap-3">
-          <p className="text-sm text-muted-foreground">Musi lee tu explicación; no hay una sola forma correcta de decirlo.</p>
-          <Button type="submit" size="lg" className="ml-auto" disabled={disabled || !state.text.trim()}>Listo</Button>
-        </div>
-      </form>
+      </div>
     )
   }
   return {
@@ -63,10 +42,17 @@ function makeExplain(v: Variant): ExerciseDefinition<ExplainState> {
     mode: 'explain',
     skills: [v.skill],
     title: v.title,
-    goal: v.prompt,
+    goal: v.goal,
+    prompt: v.prompt,
     intro: v.intro,
-    initialState: () => ({ text: '' }),
-    describe: (s) => (s.text.trim() ? `Escribió esta explicación: «${s.text.trim()}»` : 'Todavía no escribió nada.'),
+    firstBubble: v.firstBubble,
+    answer: 'text',
+    explainSkill: v.skill,
+    canSubmit: () => true,
+    // Open-ended: there is no local check, so feedback waits for Musi.
+    localFeedback: () => 'Musi está leyendo…',
+    initialState: () => ({}),
+    describe: (_s, lastAnswer) => (lastAnswer?.trim() ? `Escribió esta explicación: «${lastAnswer.trim()}»` : 'Todavía no escribió nada.'),
     // Open-ended: the API judges the explanation with the LLM (medium confidence).
     check: () => [],
     Component: Explain,
@@ -77,8 +63,10 @@ export const explainEquivalence = makeExplain({
   id: 'fractions.explain-equivalence',
   skill: 'fraction.equivalence',
   title: '¿2/4 o 1/2?',
-  prompt: 'Tu primo dice que 2/4 de una barra de chocolate es más que 1/2 porque tiene números más grandes. ¿Tiene razón?',
+  prompt: '¿2/4 es más que 1/2?',
+  goal: 'Tu primo dice que 2/4 de una barra de chocolate es más que 1/2 porque tiene números más grandes. ¿Tiene razón?',
   intro: 'Tu primo dice que dos cuartos de un chocolate es más que un medio, porque tiene números más grandes. ¿Tiene razón? Explicámelo con tus palabras.',
+  firstBubble: 'Mirá las barras y contame qué pensás.',
   visual: (
     <>
       <Bar parts={4} filled={2} label="2/4" />
@@ -91,8 +79,10 @@ export const explainCompare = makeExplain({
   id: 'fractions.explain-compare',
   skill: 'fraction.compare',
   title: '¿Qué batería dura más?',
-  prompt: 'El celular de tu mamá tiene 3/4 de batería y el de tu hermano, 2/3. ¿Cuál tiene más batería? ¿Por qué?',
+  prompt: '¿3/4 o 2/3: cuál es más?',
+  goal: 'El celular de tu mamá tiene 3/4 de batería y el de tu hermano, 2/3. ¿Cuál tiene más batería? ¿Por qué?',
   intro: 'Probemos de otra forma. El celular de tu mamá tiene tres cuartos y el de tu hermano, dos tercios. ¿Cuál tiene más batería? Contame cómo lo pensaste.',
+  firstBubble: 'Contame cómo lo pensaste.',
   visual: (
     <>
       <Bar parts={4} filled={3} label="3/4" />

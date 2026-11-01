@@ -15,8 +15,10 @@ describe('share-bar', () => {
   it('rejects wrong number of parts', () => {
     expect(shareBar.check(s([0.5]))[0].ok).toBe(false)
   })
-  it('describes sizes in Spanish', () => {
-    expect(shareBar.describe(s([0.36, 0.57, 0.79]))).toBe('La barra tiene 4 partes de tamaños 36%, 21%, 22%, 21%.')
+  it('describes pieces in Spanish without percentages', () => {
+    expect(shareBar.describe(s([0.36, 0.57, 0.79]))).toBe('La pizza tiene 4 pedazos, y no son todos iguales: algunos son un poco más grandes.')
+    expect(shareBar.describe(s([0.25, 0.5, 0.75]))).toBe('La pizza tiene 4 pedazos, todos iguales.')
+    expect(shareBar.describe(s([0.25, 0.5, 0.75]))).not.toMatch(/%/)
   })
   it('checks notation only once the parts are equal and answered', () => {
     expect(shareBar.check(s([0.25, 0.5, 0.75]))).toHaveLength(1)

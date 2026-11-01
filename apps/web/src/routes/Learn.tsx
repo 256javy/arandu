@@ -66,12 +66,25 @@ function Mission({ learnerId, nickname, plan, onNext }: { learnerId: string; nic
       learnerId,
       exerciseId: exercise.id,
       goal: exercise.goal,
-      stateDescription: exercise.describe(state),
+      stateDescription: exercise.describe(state, exercise.answer === 'text' ? message : undefined),
       evidence: event === 'submitted' ? exercise.check(state) : [],
       event,
       message,
       history: messages,
     })
+  }
+  const [answer, setAnswer] = useState('')
+  const [feedback, setFeedback] = useState<{ evidence: Evidence[]; at: number } | null>(null)
+  const canSubmit = !turn.isPending && exercise.canSubmit(state) && (exercise.answer !== 'text' || !!answer.trim())
+  const submit = () => {
+    if (!canSubmit) return
+    if (exercise.answer === 'text') {
+      send('submitted', answer.trim())
+      setAnswer('')
+    } else {
+      setFeedback({ evidence: exercise.check(state), at: Date.now() })
+      send('submitted')
+    }
   }
   const happy = lastEvidence.length > 0 && lastEvidence.every((e) => e.ok)
 
@@ -98,9 +111,33 @@ function Mission({ learnerId, nickname, plan, onNext }: { learnerId: string; nic
             <exercise.Component
               state={state}
               onChange={setState}
-              onSubmit={(message?: string) => send('submitted', message)}
               disabled={turn.isPending}
+              feedback={feedback}
             />
+            {/* Provisional action area until the dock lands. */}
+            <form
+              className="mt-5 flex flex-wrap items-end gap-3"
+              onSubmit={(e) => {
+                e.preventDefault()
+                submit()
+              }}
+            >
+              {exercise.answer === 'text' && (
+                <textarea
+                  aria-label="Tu respuesta"
+                  rows={2}
+                  maxLength={600}
+                  value={answer}
+                  disabled={turn.isPending}
+                  onChange={(e) => setAnswer(e.target.value)}
+                  placeholder="Yo creo que… porque…"
+                  className="min-w-0 flex-1 rounded-lg border-2 border-border bg-card p-3 text-base"
+                />
+              )}
+              <Button type="submit" size="lg" className="ml-auto" disabled={!canSubmit}>
+                {exercise.answer === 'text' ? 'Enviar' : 'Comprobar'}
+              </Button>
+            </form>
           </CardContent>
         </Card>
         {lastEvidence.length > 0 && (

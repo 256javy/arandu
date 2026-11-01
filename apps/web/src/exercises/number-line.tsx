@@ -21,10 +21,16 @@ const KEY_STEP = 0.01
 const clamp = (n: number) => Math.min(1, Math.max(0, n))
 const fmt = (n: number) => n.toFixed(2).replace('.', ',')
 
+function where(w: Who, state: NumberLineState): string {
+  const name = `${PHONES[w].fraction} (${PHONES[w].label})`
+  if (!state.moved[w]) return `${name} sin mover`
+  const diff = state.pos[w] - PHONES[w].value
+  if (Math.abs(diff) <= TOLERANCE) return `${name} en su lugar`
+  return `${name} ${diff > 0 ? 'más cerca del 1' : 'más cerca del 0'} de lo que va`
+}
+
 function describe(state: NumberLineState): string {
-  const placed = (Object.keys(PHONES) as Who[])
-    .map((w) => (state.moved[w] ? `${PHONES[w].fraction} (${PHONES[w].label}) en ${fmt(state.pos[w])}` : `${PHONES[w].fraction} (${PHONES[w].label}) sin mover`))
-    .join('; ')
+  const placed = (Object.keys(PHONES) as Who[]).map((w) => where(w, state)).join('; ')
   const choice = state.choice ? ` Eligió que dura más el de ${PHONES[state.choice].label} (${PHONES[state.choice].fraction}).` : ' Todavía no eligió cuál dura más.'
   return `Recta de 0 a 1 (batería vacía a llena). Ubicó ${placed}.${choice}`
 }
@@ -45,7 +51,7 @@ function check(state: NumberLineState): Evidence[] {
   return [{ skill: 'fraction.compare', ok, confidence: 'high', detail }]
 }
 
-function NumberLine({ state, onChange, onSubmit, disabled }: ExerciseProps<NumberLineState>) {
+function NumberLine({ state, onChange, disabled }: ExerciseProps<NumberLineState>) {
   const lineRef = useRef<HTMLDivElement>(null)
   const dragging = useRef<Who | null>(null)
   const setPos = (w: Who, v: number) =>
@@ -130,9 +136,6 @@ function NumberLine({ state, onChange, onSubmit, disabled }: ExerciseProps<Numbe
           ))}
         </div>
       </fieldset>
-      <div className="flex flex-wrap gap-3">
-        <Button size="lg" onClick={() => onSubmit()} className="ml-auto" disabled={disabled}>Listo</Button>
-      </div>
     </div>
   )
 }
@@ -143,7 +146,12 @@ export const numberLine: ExerciseDefinition<NumberLineState> = {
   skills: ['fraction.compare'],
   title: 'La batería del celular',
   goal: 'Ubicar 3/4 y 2/3 en la recta de 0 a 1 y decidir cuál es mayor.',
+  prompt: '¿Qué celular tiene más batería?',
   intro: 'El celular de tu mamá tiene tres cuartos de batería y el de tu hermano, dos tercios. Arrastrá cada celular a su lugar en la barra y decime cuál dura más.',
+  firstBubble: '¡Arrastrá cada celular a su lugar!',
+  answer: 'action',
+  canSubmit: (s) => s.moved.mom && s.moved.brother && s.choice !== null,
+  localFeedback: (ev) => (ev.every((e) => e.ok) ? '¡Eso es!' : 'Mmm, mirá de nuevo dónde quedó cada celular.'),
   initialState: () => ({ pos: { mom: 0.05, brother: 0.05 }, moved: { mom: false, brother: false }, choice: null }),
   describe,
   check,
