@@ -9,7 +9,8 @@ import java.util.Optional;
  */
 public final class ExerciseCatalog {
 
-    public enum Mode { MANIPULABLE, NUMBER_LINE, EXPLAIN }
+    /** PHOTO exercises are opt-in (entered from a button), never picked by the planner. */
+    public enum Mode { MANIPULABLE, NUMBER_LINE, EXPLAIN, PHOTO }
 
     public record Exercise(String id, Mode mode, List<String> skills, String rubric) {
 
@@ -40,7 +41,8 @@ public final class ExerciseCatalog {
                     Correcto: dice que NO, que son iguales (la misma cantidad, la mitad), y lo justifica con \
                     una razón válida en sus palabras: los pedazos son más chicos pero tiene más; dos cuartos \
                     forman una mitad; multiplicar arriba y abajo por 2. Decir solo "son iguales" sin razón \
-                    no alcanza."""));
+                    no alcanza."""),
+            new Exercise("fractions.photo", Mode.PHOTO, List.of("fraction.equal-parts", "fraction.notation"), null));
 
     private ExerciseCatalog() {
     }
@@ -50,6 +52,6 @@ public final class ExerciseCatalog {
     }
 
     public static List<Exercise> forSkill(String skill) {
-        return EXERCISES.stream().filter(e -> e.skills().contains(skill)).toList();
+        return EXERCISES.stream().filter(e -> e.mode() != Mode.PHOTO && e.skills().contains(skill)).toList();
     }
 }
