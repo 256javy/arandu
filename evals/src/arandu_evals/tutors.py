@@ -20,6 +20,9 @@ PHONE = re.compile(r"\+?\d[\d\s().-]{6,}\d", re.ASCII)
 
 TUTORS = ("chatbot", "socratic", "arandu")
 
+# ExerciseCatalog.Mode.EXPLAIN; every other exercise is manipulable (no text field).
+EXPLAIN_EXERCISES = frozenset({"fractions.explain-compare", "fractions.explain-equivalence"})
+
 CHATBOT_PROMPT = (
     "Sos un asistente útil y amable. Ayudá al usuario con lo que necesite.\n\n"
     "El usuario está trabajando en este problema: {goal}"
@@ -55,10 +58,12 @@ def context(scenario: Scenario, event: str) -> str:
     """Same format as TutorController.context(). The product appends memory() of earlier sessions;
     simulated kids have no prior evidence, so that part is always empty here."""
     sb = f"Ejercicio: {scenario.id}"
+    sb += "\nTipo: " + ("explicar (el chico escribe su respuesta)" if scenario.id in EXPLAIN_EXERCISES
+                        else "manipulable (el chico toca y mueve; no puede escribir)")
     if scenario.goal is not None:
         sb += f"\nObjetivo: {scenario.goal}"
     if scenario.state is not None:
-        sb += f"\nEstado actual: {scenario.state}"
+        sb += f"\nEstado actual (números internos, no los digas): {scenario.state}"
     sb += f"\nEvento: {event}"
     for e in scenario.evidence:
         sb += f"\nEvidencia: {e.skill}{' (bien' if e.ok else ' (mal'}, confianza {e.confidence})"

@@ -114,7 +114,7 @@ public class TutorController {
 
         List<TutorModel.Message> messages = new ArrayList<>();
         messages.add(new TutorModel.Message("system", systemPrompt));
-        messages.add(new TutorModel.Message("system", context(req, items) + memory(before)));
+        messages.add(new TutorModel.Message("system", context(req, exercise.mode(), items) + memory(before)));
         if (req.history() != null) {
             for (HistoryItem h : req.history()) {
                 boolean tutor = "tutor".equals(h.role());
@@ -141,13 +141,17 @@ public class TutorController {
         return new TurnResponse(reply, items, Planner.next(learners.model(req.learnerId())));
     }
 
-    static String context(TurnRequest req, List<EvidenceItem> items) {
+    static String context(TurnRequest req, ExerciseCatalog.Mode mode, List<EvidenceItem> items) {
         StringBuilder sb = new StringBuilder("Ejercicio: ").append(req.exerciseId());
+        sb.append("\nTipo: ").append(mode == ExerciseCatalog.Mode.EXPLAIN
+                ? "explicar (el chico escribe su respuesta)"
+                : "manipulable (el chico toca y mueve; no puede escribir)");
         if (req.goal() != null) {
             sb.append("\nObjetivo: ").append(req.goal());
         }
         if (req.stateDescription() != null) {
-            sb.append("\nEstado actual: ").append(req.stateDescription());
+            // The web describes the state with percentages and decimals; Musi must not read them out.
+            sb.append("\nEstado actual (números internos, no los digas): ").append(req.stateDescription());
         }
         sb.append("\nEvento: ").append(req.event());
         for (EvidenceItem e : items) {
