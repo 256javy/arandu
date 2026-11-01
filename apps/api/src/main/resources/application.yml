@@ -37,5 +37,12 @@ arandu:
     base-url: ${META_API_BASE_URL:}
     api-key: ${META_API_KEY:}
     model: ${META_MODEL:muse-spark-1.3}
-    reasoning-effort: ${META_REASONING_EFFORT:low}
-    max-tokens: ${META_MAX_TOKENS:2000}
+    # Per role. Muse Spark reasons before answering and reasoning tokens count against max-tokens.
+    # Both default to minimal: same eval scores and judge agreement as low, about half the latency
+    # (evals/README.md). The old shared META_REASONING_EFFORT / META_MAX_TOKENS are no longer read.
+    tutor:
+      reasoning-effort: ${META_TUTOR_REASONING_EFFORT:minimal}
+      max-tokens: ${META_TUTOR_MAX_TOKENS:2000}
+    judge:
+      reasoning-effort: ${META_JUDGE_REASONING_EFFORT:minimal}
+      max-tokens: ${META_JUDGE_MAX_TOKENS:2000}

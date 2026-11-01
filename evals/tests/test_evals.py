@@ -93,13 +93,15 @@ def test_scrub(raw, expected):
 def test_context_matches_controller_format():
     assert context(S.BY_ID["fractions.share-bar"], "submitted") == (
         "Ejercicio: fractions.share-bar\n"
+        "Tipo: manipulable (el chico toca y mueve; no puede escribir)\n"
         "Objetivo: Cortar la barra en 4 partes iguales para repartirla entre 4 amigos y nombrar la parte "
         "de uno con una fracción.\n"
-        "Estado actual: La barra tiene 4 partes de tamaños 36%, 21%, 22%, 21%.\n"
+        "Estado actual (números internos, no los digas): La barra tiene 4 partes de tamaños 36%, 21%, 22%, 21%.\n"
         "Evento: submitted\n"
         "Evidencia: fraction.equal-parts (mal, confianza high) Hay 4 partes pero no son iguales."
     )
     assert "Evidencia" not in context(S.BY_ID["fractions.explain-equivalence"], "stuck")
+    assert "Tipo: explicar" in context(S.BY_ID["fractions.explain-equivalence"], "stuck")
 
 
 def test_arandu_messages_use_prompt_file_context_and_scrub():

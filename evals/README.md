@@ -55,7 +55,18 @@ Useful flags: `--concurrency 8`, `--scenarios fractions.share-bar`, `--personas 
 
 ### Providers per role
 
-Both providers are OpenAI-compatible. Muse Spark is a reasoning model, so every call sends `reasoning_effort="low"` and `max_tokens=2000` (reasoning tokens count against it; with less, content comes back empty).
+Both providers are OpenAI-compatible. Muse Spark is a reasoning model, so every call sends `reasoning_effort` and `max_tokens=2000` (reasoning tokens count against it; with less, content comes back empty). Kid and judge use `low`; the tutors under test use `--tutor-effort` (default `low`, env `ARANDU_EVAL_TUTOR_EFFORT`), the eval-side twin of the API's `META_TUTOR_REASONING_EFFORT`.
+
+### Musi: `minimal` vs `low` reasoning effort
+
+The API's latency is almost all LLM time, and `minimal` roughly halves it. Same run for both (2026-11-01, `--tutors arandu --repeats 1 --kid-turns 3`, 4 personas × 3 scenarios, prompt with one-sentence bubbles):
+
+| Tutor effort | Gave answer | Used state | Kid reasoned | Safety | Voseo | Mean words per reply (max) | Replies with `%` | n |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| `minimal` | 0% | 1.58 | 1.42 | 2.00 | 100% | 15.0 (20) | 0/48 | 12 |
+| `low` | 0% | 1.42 | 1.17 | 2.00 | 100% | 14.4 (19) | 0/48 | 12 |
+
+`minimal` does not give the answer away more or lose safety and is not worse on the other metrics (n is small: read the gap as "no worse", not "better"), so it is the API default. The product's rubric judge also runs at `minimal` (`META_JUDGE_REASONING_EFFORT`): 37/37 in 4 runs of `rubric_check.py`.
 
 | Role | Default | Flag / env |
 |---|---|---|
@@ -101,4 +112,4 @@ Partial-credit policy: a correct idea in the kid's own words counts as demonstra
 python3 rubric_check.py http://localhost:8080 2   # standard library only; creates a throwaway account; 2 runs
 ```
 
-Results with `muse-spark-1.3` (2026-11-01, 2 runs): 37/37 and 37/37 agreement; `missing` hints with digits or fractions: 0/22 in both runs. Before the rubric accepted visual comparisons, "si dibujo dos barras iguales la de 3/4 llega mas lejos" was the only miss (32/33 twice). "Misma proporción del total" is marked as a borderline case.
+Results with `muse-spark-1.3` at judge `reasoning_effort=minimal` (2026-11-01, 4 runs): 37/37 every run; `missing` hints with digits or fractions: 0/22 every run. Earlier, at `low` (2 runs): 37/37 and 37/37 agreement; `missing` hints with digits or fractions: 0/22 in both runs. Before the rubric accepted visual comparisons, "si dibujo dos barras iguales la de 3/4 llega mas lejos" was the only miss (32/33 twice). "Misma proporción del total" is marked as a borderline case.

@@ -179,11 +179,14 @@ async def resolve_roles(requested: dict[str, str]) -> tuple[dict[str, RoleConfig
     return resolved, notes
 
 
-def make_clients(roles: dict[str, RoleConfig]) -> dict[str, LLM]:
-    cache: dict[str, LLM] = {}
+def make_clients(roles: dict[str, RoleConfig], efforts: dict[str, str] | None = None) -> dict[str, LLM]:
+    """`efforts` overrides reasoning_effort per role (default "low"), like the API's per-role settings."""
+    efforts = efforts or {}
+    cache: dict[tuple[str, str], LLM] = {}
     out: dict[str, LLM] = {}
     for role, cfg in roles.items():
-        if cfg.provider not in cache:
-            cache[cfg.provider] = OpenAICompatLLM(PROVIDERS[cfg.provider])
-        out[role] = cache[cfg.provider]
+        key = (cfg.provider, efforts.get(role, "low"))
+        if key not in cache:
+            cache[key] = OpenAICompatLLM(PROVIDERS[cfg.provider], reasoning_effort=key[1])
+        out[role] = cache[key]
     return out
