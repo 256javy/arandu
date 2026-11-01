@@ -18,20 +18,36 @@ class Provider:
     model: str
 
 
-PROVIDERS: dict[str, Provider] = {
-    "meta": Provider(
-        "meta",
-        os.environ.get("META_API_BASE_URL") or "https://api.meta.ai/v1",
-        "META_API_KEY",
-        os.environ.get("META_MODEL") or "muse-spark-1.3",
-    ),
-    "fireworks": Provider(
-        "fireworks",
-        "https://api.fireworks.ai/inference/v1",
-        "FIREWORKS_API_KEY",
-        "accounts/fireworks/models/muse-spark-open",
-    ),
-}
+GLIMMER_DEFAULT_MODEL = "muse-glimmer"  # --served-model-name in infra/modal/glimmer_app.py
+
+
+def build_providers(env: dict[str, str] | os._Environ = os.environ) -> dict[str, Provider]:
+    """Providers from the environment. "glimmer" is the open-weights Muse Glimmer served with vLLM
+    (infra/modal/glimmer_app.py); its base URL has no default because it depends on the deployment."""
+    return {
+        "meta": Provider(
+            "meta",
+            env.get("META_API_BASE_URL") or "https://api.meta.ai/v1",
+            "META_API_KEY",
+            env.get("META_MODEL") or "muse-spark-1.3",
+        ),
+        "fireworks": Provider(
+            "fireworks",
+            "https://api.fireworks.ai/inference/v1",
+            "FIREWORKS_API_KEY",
+            "accounts/fireworks/models/muse-spark-open",
+        ),
+        "glimmer": Provider(
+            "glimmer",
+            (env.get("GLIMMER_BASE_URL") or "").rstrip("/"),
+            "GLIMMER_API_KEY",
+            env.get("GLIMMER_MODEL") or GLIMMER_DEFAULT_MODEL,
+        ),
+    }
+
+
+PROVIDERS: dict[str, Provider] = build_providers()
+PROVIDER_CHOICES = ("auto", *PROVIDERS)
 
 ROLES = ("kid", "tutor", "judge")
 
@@ -63,6 +79,8 @@ class OpenAICompatLLM:
         key = os.environ.get(provider.key_env)
         if not key:
             raise RuntimeError(f"{provider.key_env} is not set")
+        if not provider.base_url:
+            raise RuntimeError(f"no base URL for {provider.name} (set GLIMMER_BASE_URL to the Modal URL + /v1)")
         self.provider = provider.name
         self.model = provider.model
         self._client = AsyncOpenAI(base_url=provider.base_url, api_key=key, timeout=120, max_retries=4)
