@@ -27,7 +27,7 @@ export function MusiPanel({
   onSend(text: string): void
 }) {
   const [text, setText] = useState('')
-  const endRef = useRef<HTMLDivElement>(null)
+  const endRef = useRef<HTMLLIElement>(null)
   const state: MusiState = thinking ? 'thinking' : speaking ? 'talking' : happy ? 'happy' : 'idle'
 
   useEffect(() => {
@@ -65,7 +65,7 @@ export function MusiPanel({
             </li>
           ))}
           {thinking && <li className="self-start text-muted-foreground">Musi está pensando…</li>}
-          <div ref={endRef} />
+          <li ref={endRef} aria-hidden className="h-0" />
         </ul>
         {error && <p role="alert" className="text-red-700">{error}</p>}
         <form
