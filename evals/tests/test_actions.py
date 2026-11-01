@@ -21,7 +21,12 @@ def test_pizza_check_mirrors_web():
 
 
 def test_pizza_describe_mirrors_web():
-    assert Pizza([0.36, 0.57, 0.79]).describe() == "La pizza tiene 4 pedazos, y no son todos iguales: algunos son un poco más grandes."
+    assert Pizza([0.36, 0.57, 0.79]).describe() == (
+        "La pizza tiene 4 pedazos, y no son todos iguales: algunos son un poco más grandes. "
+        "De izquierda a derecha, el 1.º pedazo es el más grande y el 2.º el más chico.")
+    assert Pizza([0.2, 0.3, 0.75]).describe() == (
+        "La pizza tiene 4 pedazos, y algunos son mucho más grandes que otros. "
+        "De izquierda a derecha, el 3.º pedazo es el más grande y el 2.º el más chico.")
     assert Pizza([0.25, 0.5, 0.75]).describe() == "La pizza tiene 4 pedazos, todos iguales."
     assert Pizza([0.45, 0.65, 0.82]).describe() == S.BY_ID["fractions.share-bar"].state
 

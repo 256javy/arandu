@@ -121,8 +121,11 @@ class Pizza(Sim):
         if all(abs(p - 1 / len(parts)) <= PIZZA_TOLERANCE for p in parts):
             return text + ", todos iguales."
         if max(parts) > 2 * min(parts):
-            return text + ", y algunos son mucho más grandes que otros."
-        return text + ", y no son todos iguales: algunos son un poco más grandes."
+            text += ", y algunos son mucho más grandes que otros."
+        else:
+            text += ", y no son todos iguales: algunos son un poco más grandes."
+        return (text + f" De izquierda a derecha, el {parts.index(max(parts)) + 1}.º pedazo es el más grande"
+                f" y el {parts.index(min(parts)) + 1}.º el más chico.")
 
     def check(self) -> tuple[Evidence, ...]:  # share-bar.tsx check(), cut step
         parts = parts_of(self.cuts)

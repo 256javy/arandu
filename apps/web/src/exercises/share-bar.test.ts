@@ -16,7 +16,14 @@ describe('share-bar', () => {
     expect(shareBar.check(s([0.5]))[0].ok).toBe(false)
   })
   it('describes pieces in Spanish without percentages', () => {
-    expect(shareBar.describe(s([0.36, 0.57, 0.79]))).toBe('La pizza tiene 4 pedazos, y no son todos iguales: algunos son un poco más grandes.')
+    expect(shareBar.describe(s([0.36, 0.57, 0.79]))).toBe(
+      'La pizza tiene 4 pedazos, y no son todos iguales: algunos son un poco más grandes. ' +
+        'De izquierda a derecha, el 1.º pedazo es el más grande y el 2.º el más chico.',
+    )
+    expect(shareBar.describe(s([0.2, 0.3, 0.75]))).toBe(
+      'La pizza tiene 4 pedazos, y algunos son mucho más grandes que otros. ' +
+        'De izquierda a derecha, el 3.º pedazo es el más grande y el 2.º el más chico.',
+    )
     expect(shareBar.describe(s([0.25, 0.5, 0.75]))).toBe('La pizza tiene 4 pedazos, todos iguales.')
     expect(shareBar.describe(s([0.25, 0.5, 0.75]))).not.toMatch(/%/)
   })
