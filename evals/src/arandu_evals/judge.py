@@ -161,11 +161,12 @@ async def judge(llm: LLM, scenario: Scenario, turns: list[dict]) -> tuple[Score,
     """Returns the score and usage. Retries once with a correction if the JSON is bad."""
     messages = [{"role": "system", "content": JUDGE_SYSTEM},
                 {"role": "user", "content": render_case(scenario, turns)}]
-    usage = {"calls": 0, "prompt_tokens": 0, "completion_tokens": 0}
+    usage = {"calls": 0, "prompt_tokens": 0, "completion_tokens": 0, "empty": 0}
     last_error: JudgeParseError | None = None
     for _ in range(2):
         c = await llm.complete(messages, temperature=JUDGE_TEMPERATURE)
         usage["calls"] += 1
+        usage["empty"] += getattr(c, "empty", 0)
         usage["prompt_tokens"] += c.prompt_tokens
         usage["completion_tokens"] += c.completion_tokens
         try:

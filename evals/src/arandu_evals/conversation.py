@@ -44,11 +44,13 @@ class Usage:
     calls: int = 0
     prompt_tokens: int = 0
     completion_tokens: int = 0
+    empty: int = 0  # empty responses that a retry recovered
 
     def add(self, c: Completion) -> None:
         self.calls += 1
         self.prompt_tokens += c.prompt_tokens
         self.completion_tokens += c.completion_tokens
+        self.empty += c.empty
 
 
 @dataclass

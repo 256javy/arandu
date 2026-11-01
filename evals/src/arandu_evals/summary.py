@@ -121,10 +121,13 @@ def render_markdown(records: list[dict], meta: dict) -> str:
         parts.append("")
     usage = meta.get("usage")
     if usage:
-        parts += ["## Token usage", "", "| Role | Calls | Prompt tokens | Completion tokens |", "|---|---:|---:|---:|"]
+        parts += ["## Token usage", "",
+                  "| Role | Calls | Prompt tokens | Completion tokens | Empty responses retried |", "|---|---:|---:|---:|---:|"]
         for role, u in usage.items():
-            parts.append(f"| {role} | {u['calls']} | {u['prompt_tokens']} | {u['completion_tokens']} |")
+            parts.append(f"| {role} | {u['calls']} | {u['prompt_tokens']} | {u['completion_tokens']} "
+                         f"| {u.get('empty', 0)} |")
         parts.append("")
+        parts += [f"Conversations lost to empty responses after retries: {meta.get('empty_failures', 0)}", ""]
     if notes:
         parts += ["## Notes", "", notes, ""]
     return "\n".join(parts)

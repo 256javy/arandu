@@ -89,6 +89,7 @@ class Completion:
     text: str
     prompt_tokens: int = 0
     completion_tokens: int = 0
+    empty: int = 0  # empty responses retried before this one came back with content
 
 
 class LLM(Protocol):
@@ -123,6 +124,7 @@ class OpenAICompatLLM:
 
     async def complete(self, messages: list[dict], *, temperature: float) -> Completion:
         prompt = completion = 0
+        reasons: list[str] = []
         for attempt in range(self._empty_retries + 1):
             res = await self._client.chat.completions.create(
                 model=self.model,
@@ -136,9 +138,12 @@ class OpenAICompatLLM:
                 completion += res.usage.completion_tokens or 0
             content = res.choices[0].message.content if res.choices else None
             if content and content.strip():
-                return Completion(content.strip(), prompt, completion)
-            await asyncio.sleep(1 + attempt)
-        raise EmptyResponseError(f"{self.provider}/{self.model} returned empty content")
+                return Completion(content.strip(), prompt, completion, empty=attempt)
+            reasons.append(str(res.choices[0].finish_reason) if res.choices else "no choices")
+            if attempt < self._empty_retries:
+                await asyncio.sleep(1 + attempt)
+        raise EmptyResponseError(f"{self.provider}/{self.model} returned empty content "
+                                 f"{len(reasons)} times (finish_reason: {', '.join(reasons)})")
 
 
 async def probe(provider_name: str) -> str | None:
