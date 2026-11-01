@@ -27,7 +27,7 @@ interface ExerciseDefinition<S> {
 }
 ```
 
-Modes planned: manipulable, number line, explain in words, free drawing, real-world photo, word problems. Deterministic `check()` evidence has high confidence; LLM-judged evidence (explanations, drawings) is marked medium or low.
+Modes built: manipulable (pizza with notation tiles, recipe), number line, explain in words, real-world photo (SAM 3.1). Planned: free drawing, word problems. Deterministic `check()` evidence has high confidence; LLM-judged evidence (explanations) is medium. The exercise has no submit button of its own: the mission screen owns a single dock action and passes the local `check()` result back as `feedback`, so the visual can animate the culprit piece immediately, before the model answers. Multi-step exercises expose `step(state)` and `stepCopy` so the screen can swap the prompt and Musi's bubble.
 
 The **learner model is organized by skill, not by exercise**, so the same skill can be demonstrated in any mode and the planner can switch modes when a kid is stuck or bored.
 
@@ -35,10 +35,11 @@ The **learner model is organized by skill, not by exercise**, so the same skill 
 
 | Path | Role |
 |---|---|
-| `apps/web` | React app: exercises, Musi panel, family view |
-| `apps/api` | Spring Boot: learners, evidence, tutor turns, LLM client |
+| `apps/web` | React app: mission screen with a fixed dock, animated Musi (SVG), exercises, photo mode (decodes SAM masks with `@meta-sam/parser`), family page, Playwright e2e |
+| `apps/api` | Spring Boot: learners, evidence, tutor turns, rubric judge, family spotlight, SAM proxy (`/api/vision/portions`, rate-limited, photos never stored) |
 | `evals` | Simulated kid personas + LLM judge scoring tutors on pedagogy and safety |
-| `infra/modal` | Eval fan-out and scheduled jobs on Modal |
+| `infra/modal` | Muse Glimmer (open weights) on vLLM for eval kids and an optional "Musi offline" tutor; eval fan-out |
+| `infra/cloudflare` | Cron worker that keeps the API warm |
 
 ## Tutor turn
 
@@ -57,7 +58,7 @@ Judged explanations keep the kid's scrubbed words as the evidence `quote` (≤ 2
 
 Evidence is aggregated per skill as a confidence-weighted moving average (a deterministic check moves it more than an LLM judgment). Each skill is `new`, `practicing`, `stuck` (two misses in a row), `likely` (last answer right but only LLM-judged) or `mastered`.
 
-The planner walks the skills in teaching order (equal parts → notation → compare → equivalence) and picks the first one not yet shown. It switches mode when the kid is stuck (number line → explain in words), confirms `likely` skills with a deterministic exercise when one exists, and explains each choice in plain Spanish for the family view.
+The planner walks the skills in teaching order (equal parts → notation → compare → equivalence → scale → unit rate) and picks the first one not yet shown. It switches mode when the kid is stuck (number line → explain in words), confirms `likely` skills with a deterministic exercise when one exists, and explains each choice in plain Spanish for the family view.
 
 | Exercise | Mode | Skills | Checked by |
 |---|---|---|---|
@@ -65,6 +66,8 @@ The planner walks the skills in teaching order (equal parts → notation → com
 | `fractions.number-line` | Number line | compare | Deterministic |
 | `fractions.explain-compare` | Explain in words | compare | LLM + rubric |
 | `fractions.explain-equivalence` | Explain in words | equivalence | LLM + rubric |
+| `proportions.recipe` | Manipulable | scale, unit rate | Deterministic |
+| `fractions.photo` | Real-world photo (opt-in, never planned) | equal parts, notation | Deterministic over SAM masks |
 
 ## Accounts and privacy
 
@@ -72,7 +75,7 @@ An adult signs up with email and password (bcrypt); sessions are opaque bearer t
 
 ## Roadmap
 
-Fractions (MVP) → proportions → powers → roots, each reusing the same contract and learner model.
+Fractions (MVP) → proportions (first exercise built) → powers → roots, each reusing the same contract and learner model.
 
 ## Deployment
 
@@ -81,5 +84,7 @@ Fractions (MVP) → proportions → powers → roots, each reusing the same cont
 | Web | Cloudflare (Workers static assets, SPA mode) |
 | API | Vercel container runtime (scales to zero; a Java AOT cache trained at build time keeps cold start around 2 s) |
 | Database | Neon (serverless Postgres) |
-| LLM | Meta Model API, `muse-spark-1.3` (OpenAI-compatible chat completions) |
+| LLM | Meta Model API: `muse-spark-1.3` (Musi, judge, spotlight) and SAM 3.1 (photo portions) |
 | Evals | Modal (fan-out) or local async runner |
+| Open-weights model | Modal: Muse Glimmer on vLLM (H100/A100), scales to zero |
+| Keep-warm | Cloudflare cron worker |
