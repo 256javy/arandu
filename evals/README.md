@@ -92,11 +92,21 @@ uvx modal secret create arandu-llm META_API_KEY=... FIREWORKS_API_KEY=...  # onc
 uv run --extra modal modal run ../infra/modal/evals_app.py --repeats 3 --kid-turns 4
 ```
 
-Results are written locally exactly as in a local run. The full grid is 6 scenarios × 4 personas × 3 tutors × 3 repeats = 216 conversations, with acting kids in the four manipulable scenarios. From the local runs below (~US$0.04 per conversation at Standard prices) expect roughly US$8–9 with `--kid-turns 4`. Ready to run once Modal is authenticated:
+Results are written locally exactly as in a local run. The full grid is 6 scenarios × 4 personas × 3 tutors × 3 repeats = 216 conversations, with acting kids in the four manipulable scenarios (~US$0.04 per conversation at Standard prices).
 
-```bash
-uv --directory evals run --extra modal modal run ../infra/modal/evals_app.py --repeats 3 --kid-turns 4
-```
+### Full run on Modal (2026-11-01)
+
+Run `20261101T070843Z` (summary and chart in `results/latest/`): 216 conversations, kid, tutors and judge on `muse-spark-1.3` (tutors `minimal`, kid and judge `low`), 0 errors, 0 conversations lost to empty responses (5 empty kid replies recovered by the retry). Tokens: 1.71M prompt and 1.04M completion, about US$9.
+
+| Tutor | Gave answer ↓ | Used state | Kid reasoned | Own insight | Solved | Turns to solve | Safety | n |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| chatbot | 89% | 1.67 | 0.57 | 7% | 85% | 2.00 | 1.76 | 72 |
+| socratic | 4% | 1.62 | 1.79 | 54% | 67% | 2.25 | 1.96 | 72 |
+| arandu | 0% | 1.39 | 1.56 | 42% | 52% | 2.36 | 1.94 | 72 |
+
+- Arandu is the only tutor that never gave the answer, and it leads on own insight in both explain scenarios (67% and 92%).
+- It is weakest where the kid repeats a mistake: number line again solved 25% (socratic 83%), pizza 17% (socratic 8%, chatbot 50%). Its hints say what to revisit but not which way, and 4 turns are often not enough.
+- Used state is lower than the baselines here because the baselines also get the board as text, and in explain scenarios every tutor scores 1.00.
 
 ### Validation run (local, 2026-11-01)
 

@@ -46,7 +46,6 @@ Desktop versions of every screen are in [docs/screenshots](docs/screenshots).
 | **SAM 3.1** | Meta Model API | `apps/api` + `apps/web` | Segments the portions in a photo of food cut at home; a deterministic check judges equal parts and the fraction eaten |
 | `@meta-sam/parser` | SAM License | `apps/web` | Decodes SAM masks in the browser for the overlay |
 | **Muse Image** | Meta Model API | `tools/illustrations` | Mission illustrations, generated **once** (not at runtime) |
-| **Muse Glimmer** (30B, open weights) | Apache 2.0 | `infra/modal` | Served with vLLM on Modal (H100/A100): simulated kids in the eval harness, and an optional "Musi offline" tutor for schools without the hosted API |
 
 Reasoning effort is set per role: Musi, the judge and the spotlight are separate clients, each with its own `reasoning_effort` and `max_tokens`. `minimal` scored no worse than `low` on the eval and the judge check, at about half the latency (numbers in [evals/README.md](evals/README.md)).
 
@@ -73,33 +72,34 @@ What changed:
 
 ## Evaluation
 
-Simulated kids (four personas: the copier, the frustrated one, the advanced one, and the one who goes off topic) work through three exercise situations with three tutors. A blind LLM judge scores each conversation. All roles use `muse-spark-1.3`.
+Simulated kids (four personas: the copier, the frustrated one, the advanced one, and the one who goes off topic) work through six exercise situations with three tutors. In the four manipulable scenarios (pizza, number line, number line with a persistent mistake, recipe) the kids **act**: they move pieces and drag batteries, and the harness checks whether they solved it. A blind LLM judge scores each conversation. All roles use `muse-spark-1.3`.
 
-- **chatbot**: a helpful assistant with no guardrails; it does not see the exercise.
-- **socratic**: a simple "be Socratic, don't give the answer" prompt; it does not see the exercise.
+- **chatbot**: a helpful assistant with no guardrails; it gets the board as text.
+- **socratic**: a simple "be Socratic, don't give the answer" prompt; it gets the board as text.
 - **arandu**: Musi's real prompt plus the exercise state and evidence, built exactly like the API does.
 
 ![Eval results chart](evals/results/latest/chart.png)
 
-| Tutor | Gave away the answer ↓ | Used exercise state (0–2) ↑ | Kid reasoned (0–2) ↑ | Safety (0–2) ↑ | n |
-|---|---:|---:|---:|---:|---:|
-| chatbot | 81% | 0.92 | 1.00 | 1.78 | 36 |
-| socratic | 0% | 0.97 | 1.47 | 1.92 | 36 |
-| **arandu** | **0%** | **1.72** | 1.39 | **2.00** | 36 |
+| Tutor | Gave away the answer ↓ | Kid reasoned (0–2) ↑ | Own insight ↑ | Solved ↑ | Safety (0–2) ↑ | n |
+|---|---:|---:|---:|---:|---:|---:|
+| chatbot | 89% | 0.57 | 7% | 85% | 1.76 | 72 |
+| socratic | 4% | 1.79 | 54% | 67% | 1.96 | 72 |
+| **arandu** | **0%** | 1.56 | 42% | 52% | 1.94 | 72 |
 
-Run `20261101T030636Z`: 108 conversations, 3 kid turns each, 0 errors, about US$3 of API usage. Full breakdown by persona and scenario: [evals/results/latest/summary.md](evals/results/latest/summary.md).
+Run `20261101T070843Z` on Modal: 216 conversations (6 scenarios × 4 personas × 3 tutors × 3 repeats, 4 kid turns each), 0 errors, about US$9 of API usage estimated from token counts. "Own insight" means the kid stated the key idea in their own words before the tutor did; "solved" only counts in manipulable scenarios. Full breakdown: [evals/results/latest/summary.md](evals/results/latest/summary.md).
 
 What it shows, honestly:
 
-- **Grounding is the clear win.** Arandu refers to what the kid actually did far more often (1.72 vs ~0.95), because it sees the exercise state.
-- **Musi never gave the answer** in this run, the same as the Socratic baseline. The unguarded chatbot gave it in 81% of conversations. An earlier run caught one leak hidden inside a question ("if 2 of 4 make the same as 1 of 2, …?"), and the prompt now forbids it.
-- **"Kid reasoned" is a tie** (1.39 vs 1.47 for the Socratic prompt, within noise at this n). This is the next thing to improve.
-- **`minimal` vs `low` effort for Musi** (Nov 1, 12 conversations each): 0% gave the answer at both. Used state was 1.58 vs 1.42, kid reasoned 1.42 vs 1.17, and safety was 2.00 at both. Read this as "no worse", not "better".
-- **Caveats:** small n, and the kids, tutor and judge share a model family. The eval measures single conversations, not the learner model or planner across sessions.
+- **Musi never gave the answer** (0 of 72). The Socratic prompt leaked it in 4%; the unguarded chatbot in 89%.
+- **Explaining is where Arandu is strongest.** Own insight reached 67% (compare fractions) and 92% (equivalence), against 33% and 83% for the Socratic prompt.
+- **Manipulables are the weak spot.** Arandu solved 25% of the "persistent mistake" number line and 17% of the pizza, against 83% and 8% for the Socratic prompt. Pointing at what to revisit without giving a direction is safe, but slow within 4 turns. The chatbot "solves" more because it hands over the answer.
+- **Previous run** (`20261101T030636Z`, 3 scenarios, 108 conversations, baselines without the board): Arandu used the exercise state far more (1.72 vs ~0.95). Now the baselines also get the board, so that gap closed.
+- **`minimal` vs `low` effort for Musi** (12 conversations each): 0% gave the answer at both, no worse on the other scores.
+- **Caveats:** kids, tutor and judge share a model family; n is 12 per scenario and tutor. The eval measures single conversations, not the learner model or planner across sessions.
 
 **Rubric judge check.** [evals/rubric_check.py](evals/rubric_check.py) sends 37 hand-labelled answers, written the way kids type, through the API's judge. They include four prompt-injection attempts. At `minimal` effort the judge matched every label (37/37) in all 4 runs. None of its 22 "what's missing" hints contained digits or fractions.
 
-The harness can also run the simulated kids on Muse Glimmer served from Modal (`--kid-provider glimmer`). Harness, Modal fan-out and how to run it: [evals/README.md](evals/README.md) and [infra/modal/README.md](infra/modal/README.md).
+Harness, Modal fan-out and how to run it: [evals/README.md](evals/README.md) and [infra/modal/README.md](infra/modal/README.md).
 
 ## Architecture
 
@@ -113,7 +113,7 @@ apps/web (React)  ──►  apps/api (Spring Boot)  ──►  Meta Model API
                          Postgres (Neon)
 
 evals (Python) ──► same prompt and context as the API, simulated kids, blind judge (local or Modal)
-infra/modal    ──► Muse Glimmer on vLLM (eval kids, optional "Musi offline"), eval fan-out
+infra/modal    ──► eval fan-out (and Muse Glimmer on vLLM, prepared: see Roadmap)
 ```
 
 Details: [docs/architecture.md](docs/architecture.md).
@@ -123,7 +123,7 @@ Details: [docs/architecture.md](docs/architecture.md).
 | `apps/web` | Kid app, missions, family page, Playwright e2e | React 19, Vite, TanStack Router + Query, Tailwind v4, shadcn/ui |
 | `apps/api` | Accounts, learner model, planner, tutor turns, spotlight, SAM proxy | Java 25, Spring Boot 4, Flyway, Postgres |
 | `evals` | Simulated personas + LLM judge, rubric judge check | Python 3.12, uv |
-| `infra/modal` | Muse Glimmer on vLLM, eval fan-out | Python, Modal |
+| `infra/modal` | Eval fan-out; Muse Glimmer on vLLM (prepared, not run) | Python, Modal |
 | `tools/illustrations` | One-off Muse Image generation | Python |
 
 ## Run it locally
@@ -163,12 +163,19 @@ Everything in this repository was built during the [Meta Global AI Developer Hac
   - per-role reasoning effort (`minimal`) and one-bubble replies, which made warm local turns about 3× faster than production was before
   - real-world photo mode with SAM 3.1
   - Muse Image mission illustrations
-  - Muse Glimmer on Modal for the eval harness
+  - the full eval grid on Modal (216 conversations, kids who act)
   - proportions as a second topic
   - a weekly family spotlight with the kid's own words
   - judge partial credit and injection hardening (37-case check)
   - Playwright e2e with axe checks
   - a keep-warm worker for the API
+
+## Roadmap
+
+- **Offline mode for schools without reliable internet.** `infra/modal/glimmer_app.py` serves Muse Glimmer (30B, open weights, Apache 2.0) with vLLM, and the eval harness can already use it (`--kid-provider glimmer`). It is prepared but has not been run: it needs a large GPU (80 GB), which is out of this project's budget for now. The goal is a tutor that keeps working on a school server without the hosted API.
+- **Manipulables:** help kids who repeat the same mistake reach the answer in fewer turns, without giving a direction (see [Evaluation](#evaluation)).
+- **Voice:** speech input for kids who don't type easily yet.
+- **Families:** export a profile's data.
 
 ## License
 
@@ -177,5 +184,5 @@ Everything in this repository was built during the [Meta Global AI Developer Hac
 Third-party material:
 
 - `@meta-sam/parser` (SAM mask decoder, bundled in the web app) is distributed under the SAM License by Meta: see [THIRD_PARTY_LICENSES/SAM-LICENSE.txt](THIRD_PARTY_LICENSES/SAM-LICENSE.txt), also served by the web app at `/licenses/SAM-LICENSE.txt`.
-- Muse Glimmer weights and the `vllm/vllm-openai` image used in `infra/modal`: Apache 2.0 (not redistributed here).
+- Muse Glimmer weights and the `vllm/vllm-openai` image referenced by `infra/modal`: Apache 2.0 (not redistributed here).
 - `apps/web/public/samples/pizza.jpg`: photo by igorovsyannykov ([Pixabay](https://pixabay.com/en/pizza-food-italian-baked-cheese-3007395/), via [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Pizza-3007395.jpg)), CC0 1.0. Sources in `apps/web/public/samples/SOURCES.md`.
