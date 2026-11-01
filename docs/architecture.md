@@ -68,7 +68,7 @@ The planner walks the skills in teaching order (equal parts → notation → com
 
 ## Accounts and privacy
 
-An adult signs up with email and password (bcrypt); sessions are opaque bearer tokens stored only as SHA-256 hashes. Kid profiles are a nickname under the adult's account. The model receives the exercise state, the kid's scrubbed text and skill names, never the account or nickname. Deleting a profile deletes its evidence (database cascade).
+An adult signs up with email and password (bcrypt); sessions are opaque bearer tokens stored only as SHA-256 hashes. Kid profiles are a nickname under the adult's account. The model receives the exercise state, the kid's scrubbed text and skill names, never the account or nickname. The scrub is heuristic, not a guarantee: it hides emails (also spelled out with "arroba"/"punto"), phone-like numbers, runs of seven or more digits and "calle/avenida/ruta … number" addresses, but it will miss names, other address formats and anything phrased creatively. To limit the damage, a kid's text is only kept as a `quote` (shown to the adult and sent to the spotlight model) when the scrub changed nothing and it has fewer than seven digits; otherwise no quote is stored. Client-sent evidence `detail` is scrubbed, stripped of `<>` and line breaks, clipped to 200 chars and never sent to the spotlight. Deleting a profile deletes its evidence (database cascade).
 
 ## Roadmap
 

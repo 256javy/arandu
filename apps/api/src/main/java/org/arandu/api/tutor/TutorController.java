@@ -53,8 +53,18 @@ public class TutorController {
     public record TurnResponse(String reply, List<EvidenceItem> evidence, Planner.Plan next) {
     }
 
-    private static final Pattern EMAIL = Pattern.compile("[\\w.+-]+@[\\w-]+(\\.[\\w-]+)+");
+    // Heuristic, not a guarantee: see docs/architecture.md (Accounts and privacy).
+    private static final Pattern EMAIL = Pattern.compile(
+            "(?iu)[\\w.+-]+\\s*(?:@|\\(at\\)|\\barroba\\b)\\s*[\\w-]+(?:\\s*(?:\\.|\\bpunto\\b)\\s*[\\w-]+)+");
     private static final Pattern PHONE = Pattern.compile("\\+?\\d[\\d\\s().-]{6,}\\d");
+    /** Seven or more digits with separators of up to 3 chars between them (ids, phones, cards). */
+    private static final Pattern LONG_DIGITS = Pattern.compile("\\+?\\d(?:[\\s().,_-]{0,3}\\d){6,}");
+    /** "calle/avenida/ruta ... + número", e.g. "vivo en la avenida España 1234". */
+    private static final Pattern ADDRESS = Pattern.compile(
+            "(?iu)\\b(?:calle|avenida|avda|av|ruta|pasaje|barrio)\\.?\\s+(?:[\\p{L}.]+\\s+){0,4}(?:n[°º.]?\\s*)?\\d+");
+    private static final Pattern DIGIT = Pattern.compile("\\d");
+    static final String HIDDEN = "[dato oculto]";
+    static final int QUOTE_MAX_DIGITS = 7;
 
     private final LearnerService learners;
     private final EvidenceRepository evidenceRepo;
@@ -80,7 +90,25 @@ public class TutorController {
         if (text == null) {
             return "";
         }
-        return PHONE.matcher(EMAIL.matcher(text).replaceAll("[dato oculto]")).replaceAll("[dato oculto]");
+        String t = EMAIL.matcher(text).replaceAll(HIDDEN);
+        t = ADDRESS.matcher(t).replaceAll(HIDDEN);
+        t = LONG_DIGITS.matcher(t).replaceAll(HIDDEN);
+        return PHONE.matcher(t).replaceAll(HIDDEN);
+    }
+
+    /**
+     * The kid's words kept for the family view (and sent to the spotlight model), or null when the scrub
+     * removed something or the text has {@value #QUOTE_MAX_DIGITS}+ digits: then nothing is quoted at all.
+     */
+    static String quotable(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        String scrubbed = scrub(raw);
+        if (!scrubbed.equals(raw) || DIGIT.matcher(raw).results().count() >= QUOTE_MAX_DIGITS) {
+            return null;
+        }
+        return scrubbed;
     }
 
     static final int DETAIL_MAX = 200;
@@ -128,7 +156,7 @@ public class TutorController {
         for (EvidenceItem e : items) {
             // Only the judged explanation keeps the kid's (scrubbed) words, for the family view.
             evidenceRepo.save(new Evidence(req.learnerId(), e.skill(), e.ok(), e.confidence(),
-                    req.exerciseId(), e.detail(), e == judged ? kidText : null));
+                    req.exerciseId(), e.detail(), e == judged ? quotable(req.message()) : null));
         }
 
         List<TutorModel.Message> messages = new ArrayList<>();

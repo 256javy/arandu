@@ -91,10 +91,10 @@ class SpotlightTest {
         String auth = signup();
         String other = signup();
         String id = learner(auth);
-        explain(auth, id, "son iguales porque dos cuartos son la mitad, mi mail es a@b.com");
+        explain(auth, id, "son iguales porque dos cuartos son la mitad");
 
         mvc.perform(get("/api/learners/" + id + "/evidence").header("Authorization", auth))
-                .andExpect(jsonPath("$[0].quote").value("son iguales porque dos cuartos son la mitad, mi mail es [dato oculto]"));
+                .andExpect(jsonPath("$[0].quote").value("son iguales porque dos cuartos son la mitad"));
 
         mvc.perform(get("/api/learners/" + id + "/spotlight").header("Authorization", other))
                 .andExpect(status().isNotFound());
@@ -123,6 +123,20 @@ class SpotlightTest {
         mvc.perform(delete("/api/learners/" + id).header("Authorization", auth)).andExpect(status().isNoContent());
         assertThat(spotlights.findById(learnerId)).isEmpty();
         assertThat(evidence.findByLearnerIdOrderByCreatedAtAsc(learnerId)).isEmpty();
+    }
+
+    @Test
+    void textWithPersonalDataIsNotQuoted() throws Exception {
+        String auth = signup();
+        String id = learner(auth);
+        explain(auth, id, "son la mitad, mi mail es a@b.com");
+        explain(auth, id, "es la mitad, vivo en la avenida España 1234");
+        explain(auth, id, "es la mitad 1 2 3 4 5 6 7");
+        mvc.perform(get("/api/learners/" + id + "/evidence").header("Authorization", auth))
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].quote").doesNotExist())
+                .andExpect(jsonPath("$[1].quote").doesNotExist())
+                .andExpect(jsonPath("$[2].quote").doesNotExist());
     }
 
     @Test
