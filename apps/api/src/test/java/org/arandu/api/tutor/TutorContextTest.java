@@ -25,6 +25,13 @@ class TutorContextTest {
     }
 
     @Test
+    void cleansClientDetail() {
+        assertThat(TutorController.cleanDetail(null)).isNull();
+        assertThat(TutorController.cleanDetail("a<b>\r\nc a@b.com")).isEqualTo("a b c [dato oculto]");
+        assertThat(TutorController.cleanDetail("x".repeat(500))).hasSize(TutorController.DETAIL_MAX);
+    }
+
+    @Test
     void marksStateNumbersAsInternal() {
         assertThat(TutorController.context(req("fractions.share-bar"), Mode.MANIPULABLE, List.of()))
                 .contains("Estado actual (números internos, no los digas): La barra");

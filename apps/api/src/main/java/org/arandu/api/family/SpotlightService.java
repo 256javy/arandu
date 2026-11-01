@@ -100,9 +100,8 @@ public class SpotlightService {
                     .append(e.isOk() ? "lo logró" : "todavía no");
             if (e.getQuote() != null) {
                 sb.append(". Escribió: «").append(e.getQuote().replace("<", "").replace(">", "")).append("»");
-            } else if (e.getDetail() != null) {
-                sb.append(". ").append(e.getDetail());
             }
+            // detail is free text from the client or the judge: never sent here.
             lines.add(sb.toString());
         }
         String practicing = next == null || next.skill() == null ? "repaso general" : Planner.label(next.skill());

@@ -83,6 +83,17 @@ public class TutorController {
         return PHONE.matcher(EMAIL.matcher(text).replaceAll("[dato oculto]")).replaceAll("[dato oculto]");
     }
 
+    static final int DETAIL_MAX = 200;
+
+    /** Client-sent evidence detail: scrubbed, no tags or line breaks, at most {@value #DETAIL_MAX} chars. */
+    static String cleanDetail(String detail) {
+        if (detail == null) {
+            return null;
+        }
+        String t = scrub(detail).replaceAll("[<>\\r\\n]+", " ").strip();
+        return t.length() > DETAIL_MAX ? t.substring(0, DETAIL_MAX) : t;
+    }
+
     @PostMapping("/turn")
     @Transactional
     public TurnResponse turn(@RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
@@ -94,7 +105,9 @@ public class TutorController {
         // Only accept evidence for skills this exercise can actually demonstrate.
         List<EvidenceItem> items = new ArrayList<>();
         if (req.evidence() != null) {
-            req.evidence().stream().filter(e -> exercise.skills().contains(e.skill())).forEach(items::add);
+            req.evidence().stream().filter(e -> exercise.skills().contains(e.skill()))
+                    .map(e -> new EvidenceItem(e.skill(), e.ok(), e.confidence(), cleanDetail(e.detail())))
+                    .forEach(items::add);
         }
         String kidText = scrub(req.message());
         EvidenceItem judged = null;
