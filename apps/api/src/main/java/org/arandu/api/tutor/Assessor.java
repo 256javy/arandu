@@ -20,8 +20,9 @@ public class Assessor {
 
     static final String SYSTEM = """
             Sos un evaluador de explicaciones de matemática de chicos de 9 a 12 años. Recibís una rúbrica y la \
-            respuesta del chico. Decidí si la respuesta cumple la rúbrica. Sé justo con la ortografía y las \
-            palabras informales: importa la idea. Respondé SOLO con JSON, sin texto extra: \
+            respuesta del chico. Decidí si la respuesta cumple la rúbrica, leyéndola en el contexto de la \
+            pregunta (el chico puede nombrar las cosas como aparecen en la pregunta en vez de usar números). Sé \
+            justo con la ortografía y las palabras informales: importa la idea. Respondé SOLO con JSON, sin texto extra: \
             {"ok": true|false, "reason": "una oración en español que explique la decisión"}""";
 
     private static final Pattern JSON = Pattern.compile("\\{.*}", Pattern.DOTALL);

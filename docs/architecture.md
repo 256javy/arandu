@@ -44,8 +44,27 @@ The **learner model is organized by skill, not by exercise**, so the same skill 
 
 1. The exercise emits an event (`submitted`, `stuck`, or a kid `message`).
 2. The web sends `describe(state)`, `check(state)` and recent history to `POST /api/tutor/turn`.
-3. The API stores the evidence, strips personal data from kid text, and calls Muse Spark with Musi's system prompt.
-4. Musi's reply is shown and spoken.
+3. The API checks the learner belongs to the signed-in adult, keeps only evidence for skills the exercise can show, and strips personal data from kid text.
+4. For open-ended exercises, Muse Spark judges the explanation against a server-side rubric; the result is stored as **medium-confidence** evidence.
+5. Muse Spark answers as Musi with the system prompt, the exercise state, this turn's evidence and a **memory** of what the kid showed in earlier sessions.
+6. The planner recomputes the next mission from the learner model; Musi's reply is shown and spoken.
+
+## Learner model and planner
+
+Evidence is aggregated per skill as a confidence-weighted moving average (a deterministic check moves it more than an LLM judgment). Each skill is `new`, `practicing`, `stuck` (two misses in a row), `likely` (last answer right but only LLM-judged) or `mastered`.
+
+The planner walks the skills in teaching order (equal parts → notation → compare → equivalence) and picks the first one not yet shown. It switches mode when the kid is stuck (number line → explain in words), confirms `likely` skills with a deterministic exercise when one exists, and explains each choice in plain Spanish for the family view.
+
+| Exercise | Mode | Skills | Checked by |
+|---|---|---|---|
+| `fractions.share-bar` | Manipulable | equal parts, notation | Deterministic |
+| `fractions.number-line` | Number line | compare | Deterministic |
+| `fractions.explain-compare` | Explain in words | compare | LLM + rubric |
+| `fractions.explain-equivalence` | Explain in words | equivalence | LLM + rubric |
+
+## Accounts and privacy
+
+An adult signs up with email and password (bcrypt); sessions are opaque bearer tokens stored only as SHA-256 hashes. Kid profiles are a nickname under the adult's account. The model receives the exercise state, the kid's scrubbed text and skill names, never the account or nickname. Deleting a profile deletes its evidence (database cascade).
 
 ## Roadmap
 
@@ -55,7 +74,8 @@ Fractions (MVP) → proportions → powers → roots, each reusing the same cont
 
 | Piece | Service |
 |---|---|
-| Web | Cloudflare Pages |
-| API | Google Cloud Run (container) |
-| Database | Neon (Postgres) |
-| Evals | Modal |
+| Web | Cloudflare (Workers static assets, SPA mode) |
+| API | Vercel container runtime (scales to zero; a Java AOT cache trained at build time keeps cold start around 2 s) |
+| Database | Neon (serverless Postgres) |
+| LLM | Meta Model API, `muse-spark-1.3` (OpenAI-compatible chat completions) |
+| Evals | Modal (fan-out) or local async runner |
