@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, Navigate } from '@tanstack/react-router'
+import { Link, Navigate, useSearch } from '@tanstack/react-router'
+import { MissionArt } from '@/components/MissionArt'
 import { BatteryMedium, LifeBuoy, MessageCircle, MessagesSquare, Pizza, RotateCcw, Star, Volume2, VolumeX, X } from 'lucide-react'
 import { getNext, getStoredLearnerId, getToken, tutorTurn, wakeApi, type Plan, type TurnRequest } from '@/api/client'
 import { Button } from '@/components/ui/button'
@@ -18,6 +19,11 @@ const PATH = [
   { label: 'Explicar', icon: MessageCircle, ids: ['fractions.explain-compare', 'fractions.explain-equivalence'] },
 ]
 const nodeOf = (exerciseId: string) => PATH.findIndex((p) => p.ids.includes(exerciseId))
+
+/** Optional mission outside the path: the planner never picks it, the kid opens it. */
+export const PHOTO_PLAN: Plan = { exerciseId: 'fractions.photo', skill: 'fraction.equal-parts', reason: 'Misión opcional con una foto.' }
+const artOf = (exerciseId: string) => exerciseId.replace(/^fractions\./, '')
+const INTRO_MS = 2500
 
 /** How long a "check" reaction stays before Musi starts thinking about the API reply. */
 const REACT_MS = 700
@@ -49,12 +55,15 @@ export function Learn() {
   useEffect(() => wakeApi(), [])
   const plan = useQuery({ queryKey: ['next', learnerId], queryFn: () => getNext(learnerId!), enabled: !!learnerId && !!token, gcTime: 0, refetchOnWindowFocus: false })
   // each "Continuar" mounts a fresh mission, even when the planner repeats an exercise
-  const [current, setCurrent] = useState<{ plan: Plan; n: number } | null>(null)
+  const { mision } = useSearch({ from: '/aprender' })
+  const [current, setCurrent] = useState<{ plan: Plan; n: number } | null>(() => (mision === 'foto' ? { plan: PHOTO_PLAN, n: 1 } : null))
   const [progress, setProgress] = useState(loadProgress)
   const done = new Set(progress.done)
   const complete = useCallback((exerciseId: string) => {
     setProgress((p) => {
-      const next = { done: [...new Set([...p.done, nodeOf(exerciseId)])], stars: p.stars + 1 }
+      const node = nodeOf(exerciseId)
+      // the photo bonus earns a star but is not a node of the path
+      const next = { done: node < 0 ? p.done : [...new Set([...p.done, node])], stars: p.stars + 1 }
       saveProgress(next)
       return next
     })
@@ -76,11 +85,18 @@ export function Learn() {
       stars={stars}
       onComplete={complete}
       onNext={(p) => setCurrent((c) => ({ plan: p, n: (c?.n ?? 0) + 1 }))}
+      onBonus={() => setCurrent((c) => ({ plan: PHOTO_PLAN, n: (c?.n ?? 0) + 1 }))}
     />
   )
 }
 
-function MissionPath({ currentNode, done, stars }: { currentNode: number; done: Set<number>; stars: number }) {
+function MissionPath({ currentNode, done, stars, bonus, onBonus }: {
+  currentNode: number
+  done: Set<number>
+  stars: number
+  bonus: boolean
+  onBonus(): void
+}) {
   return (
     <nav aria-label="Camino de misiones" className="flex items-center gap-3">
       <Button asChild variant="outline" size="icon" className="shrink-0 rounded-full">
@@ -106,6 +122,18 @@ function MissionPath({ currentNode, done, stars }: { currentNode: number; done: 
           )
         })}
       </ol>
+      <Button
+        variant="outline"
+        size="icon"
+        aria-label="Tu pizza: misión extra con una foto"
+        aria-current={bonus ? 'step' : undefined}
+        title="Tu pizza"
+        disabled={bonus}
+        onClick={onBonus}
+        className={`shrink-0 rounded-full text-xl disabled:opacity-100 ${bonus ? 'border-amber-600 bg-amber-100 ring-4 ring-amber-300' : ''}`}
+      >
+        <span aria-hidden>📷</span>
+      </Button>
       <span className="flex shrink-0 items-center gap-1 text-lg font-bold" aria-label={`${stars} estrellas`}>
         <Star aria-hidden className="size-6 fill-amber-400 text-amber-600" /> {stars}
       </span>
@@ -129,13 +157,14 @@ function Bubble({ text, bubbleKey, side }: { text: string; bubbleKey: number; si
   )
 }
 
-function Mission({ learnerId, plan, done, stars, onComplete, onNext }: {
+function Mission({ learnerId, plan, done, stars, onComplete, onNext, onBonus }: {
   learnerId: string
   plan: Plan
   done: Set<number>
   stars: number
   onComplete(exerciseId: string): void
   onNext(p: Plan): void
+  onBonus(): void
 }) {
   const exercise = EXERCISES[plan.exerciseId]
   const queryClient = useQueryClient()
@@ -147,8 +176,15 @@ function Mission({ learnerId, plan, done, stars, onComplete, onNext }: {
   const [talking, setTalking] = useState(false)
   const speech = useSpeech()
   const musiRef = useRef<HTMLDivElement>(null)
+  const dockMusiRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const isText = exercise.answer === 'text'
+  // phone: the mission's scene shows briefly over the visual when it mounts (no layout shift, no blocking)
+  const [intro, setIntro] = useState(true)
+  useEffect(() => {
+    const t = setTimeout(() => setIntro(false), INTRO_MS)
+    return () => clearTimeout(t)
+  }, [])
 
   // step-dependent copy (e.g. cut → notation)
   const step = exercise.step?.(state)
@@ -198,7 +234,9 @@ function Mission({ learnerId, plan, done, stars, onComplete, onNext }: {
     if (m.phase !== 'done' || completed.current) return
     completed.current = true
     onComplete(exercise.id)
-    if (musiRef.current) confetti(musiRef.current)
+    // burst from whichever Musi is on screen (the desktop one is display:none on phones)
+    const origin = [musiRef.current, dockMusiRef.current].find((el) => el && el.offsetParent !== null)
+    if (origin) confetti(origin)
   }, [m.phase, exercise.id, onComplete])
 
   const send = (event: TurnRequest['event'], kidText?: string) => {
@@ -251,21 +289,27 @@ function Mission({ learnerId, plan, done, stars, onComplete, onNext }: {
 
   return (
     <div className="flex min-h-[calc(100dvh-6rem)] flex-col gap-4">
-      <MissionPath currentNode={nodeOf(exercise.id)} done={done} stars={stars} />
+      <MissionPath currentNode={nodeOf(exercise.id)} done={done} stars={stars} bonus={exercise.id === PHOTO_PLAN.exerciseId} onBonus={onBonus} />
 
       <div className="grid flex-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_240px]">
         <section aria-labelledby="mission-prompt" className="flex flex-col gap-4 lg:gap-8 lg:self-center">
           <h1 id="mission-prompt" className="text-2xl font-bold sm:text-3xl">{copy.prompt}</h1>
           <p id="mission-intro" className="sr-only">{exercise.intro}</p>
-          <div aria-describedby="mission-intro">
+          <div aria-describedby="mission-intro" className="relative">
             <exercise.Component state={state} onChange={onChange} disabled={busy || m.phase === 'done'} feedback={m.feedback} />
+            {intro && (
+              <div aria-hidden className="intro-scene pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center lg:hidden">
+                <MissionArt id={artOf(exercise.id)} size={176} className="border-4 border-white shadow-xl" />
+              </div>
+            )}
           </div>
         </section>
 
-        {/* desktop: Musi next to the visual, bubble pointing at it */}
-        <aside className="sticky top-4 hidden flex-row-reverse items-center gap-2 lg:flex lg:flex-col-reverse">
-          <div ref={musiRef}><MusiCharacter mood={mood} talking={talking || speech.speaking} className="size-28" /></div>
+        {/* desktop: the scene, Musi and the bubble next to the visual */}
+        <aside className="sticky top-4 hidden flex-col items-center gap-3 lg:flex">
+          <MissionArt id={artOf(exercise.id)} size={200} />
           <Bubble text={m.bubble} bubbleKey={m.bubbleKey} side="bottom" />
+          <div ref={musiRef}><MusiCharacter mood={mood} talking={talking || speech.speaking} className="size-28" /></div>
         </aside>
       </div>
 
@@ -281,14 +325,17 @@ function Mission({ learnerId, plan, done, stars, onComplete, onNext }: {
       >
         {/* in the dock so it is always above the fold */}
         {m.phase === 'done' && (
-          <div role="status" className="pop-in flex flex-col items-center rounded-2xl bg-green-100 px-4 py-2 text-center text-green-950">
-            <p className="text-2xl font-bold">{COPY.done}</p>
-            {allDone && <p className="text-base">{COPY.allDone}</p>}
+          <div role="status" className="pop-in flex items-center justify-center gap-3 rounded-2xl bg-green-100 px-4 py-2 text-center text-green-950">
+            {allDone && <MissionArt id="celebrate" size={72} />}
+            <div>
+              <p className="text-2xl font-bold">{COPY.done}</p>
+              {allDone && <p className="text-base">{COPY.allDone}</p>}
+            </div>
           </div>
         )}
         {/* phone/tablet: Musi + one-sentence bubble live in the dock */}
         <div className="flex items-center gap-3 lg:hidden">
-          <div className="shrink-0"><MusiCharacter mood={mood} talking={talking || speech.speaking} className="size-14" /></div>
+          <div ref={dockMusiRef} className="shrink-0"><MusiCharacter mood={mood} talking={talking || speech.speaking} className="size-14" /></div>
           <Bubble text={m.bubble} bubbleKey={m.bubbleKey} side="left" />
         </div>
         {isText && (m.phase === 'working' || busy) && (

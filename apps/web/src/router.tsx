@@ -25,7 +25,13 @@ const root = createRootRoute({
 const routeTree = root.addChildren([
   createRoute({ getParentRoute: () => root, path: '/', component: Home }),
   createRoute({ getParentRoute: () => root, path: '/entrar', component: SignIn }),
-  createRoute({ getParentRoute: () => root, path: '/aprender', component: Learn }),
+  createRoute({
+    getParentRoute: () => root,
+    path: '/aprender',
+    component: Learn,
+    // `?mision=foto` opens the optional photo mission instead of the planner's pick
+    validateSearch: (s: Record<string, unknown>): { mision?: 'foto' } => (s.mision === 'foto' ? { mision: 'foto' } : {}),
+  }),
   createRoute({ getParentRoute: () => root, path: '/familia', component: Family }),
 ])
 
