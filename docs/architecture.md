@@ -46,7 +46,9 @@ The **learner model is organized by skill, not by exercise**, so the same skill 
 2. The web sends `describe(state)`, `check(state)` and recent history to `POST /api/tutor/turn`.
 3. The API checks the learner belongs to the signed-in adult, keeps only evidence for skills the exercise can show, and strips personal data from kid text.
 4. For open-ended exercises, Muse Spark judges the explanation against a server-side rubric; the result is stored as **medium-confidence** evidence.
-5. Muse Spark answers as Musi with the system prompt, the exercise state, this turn's evidence and a **memory** of what the kid showed in earlier sessions.
+5. Muse Spark answers as Musi with the system prompt, the exercise type (manipulable: the kid can only touch and move; explain: the kid writes), the exercise state (its numbers marked as internal), this turn's evidence and a **memory** of what the kid showed in earlier sessions. Musi answers in one short sentence (a speech bubble), with no percentages or decimals.
+
+Musi and the judge are separate clients with their own `reasoning_effort` and `max_tokens` (`META_TUTOR_*`, `META_JUDGE_*`, both `minimal` by default). Warm local turn latency with the defaults (2026-11-01, n=5, median): share-bar 1.6 s, number line 1.3 s, explain with judge 2.7 s.
 6. The planner recomputes the next mission from the learner model; Musi's reply is shown and spoken.
 
 ## Learner model and planner
