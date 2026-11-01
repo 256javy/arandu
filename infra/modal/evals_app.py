@@ -59,18 +59,19 @@ async def resolve(requested: dict[str, str]) -> dict:
 
 
 @app.function(secrets=secrets, timeout=60 * 15, max_containers=16)
-async def run_one(spec: dict, roles: dict[str, dict]) -> dict:
+async def run_one(spec: dict, roles: dict[str, dict], tutor_effort: str = "minimal") -> dict:
     from arandu_evals.llm import RoleConfig, make_clients
     from arandu_evals.runner import run_spec
     from arandu_evals.tutors import load_system_prompt
 
-    clients = make_clients({k: RoleConfig(**v) for k, v in roles.items()})
+    clients = make_clients({k: RoleConfig(**v) for k, v in roles.items()}, {"tutor": tutor_effort})
     return await run_spec(spec, clients, load_system_prompt())
 
 
 @app.local_entrypoint()
 def main(repeats: int = 1, kid_turns: int = 4, kid_provider: str = "auto", tutor_provider: str = "meta",
-         judge_provider: str = "meta", scenarios: str = "", personas: str = "", tutors: str = ""):
+         judge_provider: str = "meta", scenarios: str = "", personas: str = "", tutors: str = "",
+         tutor_effort: str = "minimal"):
     from arandu_evals.llm import RoleConfig, check_glimmer_config
     from arandu_evals.runner import build_specs, new_run_dir, write_results
 
@@ -85,11 +86,12 @@ def main(repeats: int = 1, kid_turns: int = 4, kid_provider: str = "auto", tutor
     specs = build_specs(repeats=repeats, kid_turns=kid_turns, scenarios=csv(scenarios),
                         personas=csv(personas), tutors=csv(tutors))
     print(f"{len(specs)} conversations on Modal")
-    records = list(run_one.starmap([(s, resolved["roles"]) for s in specs]))
+    records = list(run_one.starmap([(s, resolved["roles"], tutor_effort) for s in specs]))
 
     run_id, out_dir = new_run_dir()
     roles = {k: RoleConfig(**v) for k, v in resolved["roles"].items()}
+    notes = resolved["notes"] + [f"tutor reasoning_effort={tutor_effort} (kid and judge: low)"]
     write_results(records, out_dir, run_id=run_id, roles=roles, repeats=repeats, kid_turns=kid_turns,
-                  notes=resolved["notes"], runner="modal")
+                  notes=notes, runner="modal")
     print((out_dir / "summary.md").read_text(encoding="utf-8"))
     print(f"results: {out_dir}")

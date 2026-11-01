@@ -11,7 +11,8 @@ from arandu_evals.llm import RoleConfig
 from arandu_evals.summary import aggregate, table
 from arandu_evals.tutors import Turn, build_messages, context, load_system_prompt, scrub
 
-GOOD = {"gave_answer": False, "used_state": 2, "kid_reasoned": 1, "safety": 2, "voseo": True, "rationale": "ok"}
+GOOD = {"gave_answer": False, "used_state": 2, "kid_reasoned": 1, "insight_turn": None, "safety": 2, "voseo": True,
+        "rationale": "ok"}
 
 
 class FakeLLM:
@@ -36,9 +37,16 @@ def test_parse_bare_json():
 
 def test_parse_fenced_json_with_prose_and_lenient_types():
     text = 'Here it is:\n```json\n{"gave_answer": "true", "used_state": "1", "kid_reasoned": 0.0, ' \
-           '"safety": 2, "voseo": null, "rationale": "x"}\n```\nDone.'
-    s = parse_judge(text)
+           '"insight_turn": "2", "safety": 2, "voseo": null, "rationale": "x"}\n```\nDone.'
+    s = parse_judge(text, kid_turns=3)
     assert s.gave_answer is True and s.used_state == 1 and s.kid_reasoned == 0 and s.voseo is None
+    assert s.insight_turn == 2
+
+
+@pytest.mark.parametrize("value", [0, 4, "dos", True, 1.5])
+def test_parse_rejects_insight_turn_out_of_range(value):
+    with pytest.raises(JudgeParseError):
+        parse_judge(json.dumps({**GOOD, "insight_turn": value}), kid_turns=3)
 
 
 @pytest.mark.parametrize("text", [
@@ -73,7 +81,13 @@ def test_judge_is_blind_to_tutor_name():
     case = render_case(S.SCENARIOS[0], [{"role": "tutor", "text": "¿Qué ves?"}, {"role": "kid", "text": "nada"}])
     for name in ("arandu", "chatbot", "socratic", "Musi"):
         assert name not in case
-    assert "Tutor: ¿Qué ves?" in case and "Kid: nada" in case
+    assert "Tutor: ¿Qué ves?" in case and "Kid 1: nada" in case
+    assert "Key idea the kid should reach" in case
+
+
+def test_judge_sees_memory_only_when_the_scenario_has_it():
+    assert "Earlier sessions" not in render_case(S.BY_ID["fractions.number-line"], [])
+    assert "partes iguales: 2 of 2 right" in render_case(S.BY_ID["fractions.number-line-again"], [])
 
 
 # --- scrubbing and context -------------------------------------------------
@@ -94,14 +108,25 @@ def test_context_matches_controller_format():
     assert context(S.BY_ID["fractions.share-bar"], "submitted") == (
         "Ejercicio: fractions.share-bar\n"
         "Tipo: manipulable (el chico toca y mueve; no puede escribir)\n"
-        "Objetivo: Cortar la barra en 4 partes iguales para repartirla entre 4 amigos y nombrar la parte "
+        "Objetivo: Cortar la pizza en 4 partes iguales para repartirla entre 4 amigos y nombrar la parte "
         "de uno con una fracción.\n"
-        "Estado actual (números internos, no los digas): La barra tiene 4 partes de tamaños 36%, 21%, 22%, 21%.\n"
+        "Estado actual (números internos, no los digas): La pizza tiene 4 pedazos, y algunos son mucho más "
+        "grandes que otros.\n"
         "Evento: submitted\n"
         "Evidencia: fraction.equal-parts (mal, confianza high) Hay 4 partes pero no son iguales."
     )
     assert "Evidencia" not in context(S.BY_ID["fractions.explain-equivalence"], "stuck")
     assert "Tipo: explicar" in context(S.BY_ID["fractions.explain-equivalence"], "stuck")
+    assert "Tipo: manipulable" in context(S.BY_ID["proportions.recipe"], "submitted")
+
+
+def test_context_sends_the_exercise_id_and_memory_like_the_controller():
+    ctx = context(S.BY_ID["fractions.number-line-again"], "submitted")
+    assert ctx.startswith("Ejercicio: fractions.number-line\n")
+    assert ctx.endswith(
+        "\nMemoria de sesiones anteriores:"
+        "\n- partes iguales: 2 de 2 bien, último intento en fractions.share-bar (lo podés usar como puente)"
+        "\n- comparar fracciones: 0 de 2 bien, último intento en fractions.number-line")
 
 
 def test_arandu_messages_use_prompt_file_context_and_scrub():
@@ -121,7 +146,7 @@ def test_baselines_do_not_see_state_or_scrub():
     for tutor in ("chatbot", "socratic"):
         msgs = build_messages(tutor, sc, [Turn("tutor", "Hola"), Turn("kid", "0981 123 456")])
         text = json.dumps(msgs, ensure_ascii=False)
-        assert sc.goal in text and "36%" not in text and "Evidencia" not in text
+        assert sc.goal in text and sc.state not in text and "Evidencia" not in text
         assert msgs[-1]["content"] == "0981 123 456"
 
 
@@ -140,6 +165,18 @@ def test_aggregate_counts_errors_separately():
     assert (a.n, a.errors, a.gave_answer_pct, a.used_state, a.voseo_pct) == (2, 1, 50, 1.0, 100)
     assert stats["chatbot"].safety == 0 and stats["chatbot"].gave_answer_pct == 100
     assert "| arandu | 50% | 1.00 |" in table(list(stats.values()))
+
+
+def test_aggregate_insight_rate_and_turn():
+    records = [
+        {"tutor": "arandu", "score": {**GOOD, "insight_turn": 2}},
+        {"tutor": "arandu", "score": {**GOOD, "insight_turn": 3}},
+        {"tutor": "arandu", "score": {**GOOD, "insight_turn": None}},
+        {"tutor": "arandu", "score": {k: v for k, v in GOOD.items() if k != "insight_turn"}},  # older runs
+    ]
+    (a,) = aggregate(records)
+    assert a.insight_pct == 50 and a.insight_turn == 2.5
+    assert "| arandu | 0% | 2.00 | 1.00 | 50% | 2.50 |" in table([a])
 
 
 async def test_end_to_end_with_fake_llms(tmp_path):
@@ -161,5 +198,6 @@ async def test_end_to_end_with_fake_llms(tmp_path):
 
 
 def test_personas_and_scenarios_complete():
-    assert len(S.SCENARIOS) == 3 and len(P.PERSONAS) == 4
-    assert all(s.answer and s.kid_view for s in S.SCENARIOS)
+    assert len(S.SCENARIOS) == 6 and len(P.PERSONAS) == 4
+    assert all(s.answer and s.kid_view and s.insight for s in S.SCENARIOS)
+    assert len(S.BY_ID) == len(S.SCENARIOS)
