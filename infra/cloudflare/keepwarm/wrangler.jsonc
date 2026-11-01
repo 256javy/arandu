@@ -4,5 +4,10 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
   "triggers": { "crons": ["* * * * *"] },
-  "vars": { "API_URL": "https://arandu-api-mocha.vercel.app" }
+  "vars": {
+    "API_URL": "https://arandu-api-mocha.vercel.app",
+    // warm window (UTC): 3 pings/min inside, 1 ping every 4 min outside
+    "WARM_FROM": "2026-11-04T12:00:00Z",
+    "WARM_UNTIL": "2026-11-10T03:00:00Z"
+  }
 }
