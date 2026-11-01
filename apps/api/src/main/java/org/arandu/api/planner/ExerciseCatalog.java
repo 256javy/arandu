@@ -31,16 +31,17 @@ public final class ExerciseCatalog {
                     más y por qué? Decir "el de mamá" es lo mismo que decir 3/4, y "el de mi hermano", 2/3.
                     Correcto: dice que 3/4 (el de mamá) es más y lo justifica con una razón \
                     válida en sus palabras, por ejemplo que a 3/4 le falta 1/4 y a 2/3 le falta 1/3, que es \
-                    más; que los cuartos son más chicos que los tercios pero tiene más; o comparando con \
-                    denominador común (9/12 contra 8/12). Una respuesta sin razón o con razón inválida \
+                    más; que los cuartos son más chicos que los tercios pero tiene más; comparando con \
+                    denominador común (9/12 contra 8/12); pasando a porcentaje o decimal (75% contra 67%); o con una comparación visual explícita de \
+                    longitudes o tamaños (por ejemplo, dibujar dos barras iguales y ver que 3/4 llega más lejos). Una respuesta sin razón o con razón inválida \
                     ("porque 4 es más grande que 3") no alcanza."""),
             new Exercise("fractions.explain-equivalence", Mode.EXPLAIN, List.of("fraction.equivalence"), """
                     Pregunta: el primo dice que 2/4 de un chocolate es más que 1/2 porque tiene números más \
                     grandes. ¿Tiene razón? Decir "no" o "no tiene razón" ya responde la pregunta.
                     Correcto: dice que NO, que son iguales (la misma cantidad, la mitad), y lo justifica con \
                     una razón válida en sus palabras: los pedazos son más chicos pero tiene más; dos cuartos \
-                    forman una mitad; multiplicar arriba y abajo por 2. Decir solo "son iguales" sin razón \
-                    no alcanza."""));
+                    forman una mitad; multiplicar arriba y abajo por 2; es la misma parte o proporción del \
+                    total. Decir solo "son iguales" sin razón no alcanza."""));
 
     private ExerciseCatalog() {
     }
