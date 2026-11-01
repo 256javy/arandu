@@ -189,7 +189,7 @@ function LearnerProgress({ learner }: { learner: Learner }) {
           </ul>
           {next.data && (
             <p className="rounded-lg bg-secondary p-3 text-secondary-foreground">
-              <strong>Próxima misión que eligió el planner:</strong> {exerciseTitle(next.data.exerciseId)}. {next.data.reason}
+              <strong>Arandu eligió como próxima misión:</strong> {exerciseTitle(next.data.exerciseId)}. {next.data.reason}
             </p>
           )}
         </CardContent>

@@ -1,10 +1,10 @@
 import { useId } from 'react'
 
 /**
- * Musi: personaje SVG propio, animado solo con CSS (0 kB de librería).
- * Un único <svg>; el estado vive en `data-mood` y las partes cruzan por
- * opacity/transform, así que cambiar de mood nunca re-monta el DOM.
- * Solo anima transform y opacity (compositor, fluido en gama media).
+ * Musi: hand-made SVG character, animated with CSS only (no library).
+ * A single <svg>; the state lives in `data-mood` and parts cross-fade with
+ * opacity/transform, so changing mood never remounts the DOM.
+ * Only transform and opacity animate (compositor-friendly on mid-range phones).
  */
 export type MusiMood = 'idle' | 'looking' | 'thinking' | 'happy' | 'cheer' | 'encourage' | 'hmm'
 
@@ -18,7 +18,7 @@ const LABEL: Record<MusiMood, string> = {
   hmm: 'Musi duda, hmm',
 }
 
-// Paleta con contraste: contorno 9.1:1 sobre blanco; boca 4.2:1 sobre el cuerpo; pupila 15.5:1 sobre el ojo.
+// Contrast-checked palette: outline 9.1:1 on white; mouth 4.2:1 on the body; pupil 15.5:1 on the eye.
 const C = { body: '#f59e0b', line: '#78350f', mouth: '#7f1d1d', ink: '#1f2430', cheek: '#fb7185', white: '#ffffff', spark: '#facc15' }
 
 const CSS = `
@@ -27,7 +27,7 @@ const CSS = `
 .musi .fade{transition:opacity .18s ease-out}
 .musi .pose{transition:transform .35s var(--ease-out)}
 
-/* partes que aparecen solo en ciertos moods */
+/* parts shown only in some moods */
 .musi .m-smile,.musi .m-open,.musi .m-flat,.musi .m-wavy,.musi .m-o,.musi .m-soft,
 .musi .e-round,.musi .e-happy,.musi .e-side,
 .musi .cheeks,.musi .brows,.musi .brows-hmm,.musi .dots,.musi .qmark,.musi .sparks,.musi .heart{opacity:0}
@@ -50,7 +50,7 @@ const CSS = `
 .musi[data-mood=cheer] .sparks{opacity:1}
 .musi[data-mood=encourage] .heart{opacity:1}
 
-/* mirada: la pupila se mueve con transform, no con cx/cy */
+/* gaze: the pupil moves with transform, not cx/cy */
 .musi .pupils{transition:transform .3s var(--ease-out)}
 .musi[data-mood=looking] .pupils{transform:translate(4px,1px)}
 .musi[data-mood=thinking] .pupils{transform:translate(-3px,-4px)}
@@ -59,7 +59,7 @@ const CSS = `
 .musi .pupils{transition:transform .3s var(--ease-out),opacity .18s}
 .musi[data-mood=cheer] .pupils,.musi[data-mood=hmm] .pupils{opacity:0}
 
-/* cabeza: inclinaciones por mood */
+/* head: tilt per mood */
 .musi[data-mood=looking] .head{transform:rotate(5deg)}
 .musi[data-mood=thinking] .head{transform:rotate(-6deg)}
 .musi[data-mood=hmm] .head{transform:rotate(-9deg) translateY(1px)}
@@ -67,7 +67,7 @@ const CSS = `
 .musi[data-mood=looking] .ear-l,.musi[data-mood=looking] .ear-r{transform:translateY(-3px)}
 .musi[data-mood=encourage] .ear-l,.musi[data-mood=encourage] .ear-r{transform:translateY(2px) rotate(0deg)}
 
-/* parpadeo: el párpado es el mismo círculo del cuerpo que baja (scaleY) */
+/* blink: the lid is a body-colored shape that scales down (scaleY) */
 @keyframes musi-blink{0%,92%,100%{transform:scaleY(0)}95%,97%{transform:scaleY(1)}}
 @keyframes musi-bob{0%,100%{transform:translateY(0) scale(1,1)}50%{transform:translateY(-3px) scale(1.01,.99)}}
 @keyframes musi-hop{0%{transform:translateY(0) scale(1.08,.9)}35%{transform:translateY(-14px) scale(.94,1.08)}70%{transform:translateY(0) scale(1.06,.93)}100%{transform:translateY(0) scale(1,1)}}
@@ -101,7 +101,7 @@ const CSS = `
   .musi[data-talking=true] .m-talk{opacity:1;animation:musi-talk .32s ease-in-out infinite}
 }
 .musi .m-talk{opacity:0}
-/* reduced motion: sin movimiento; el mood sigue leyéndose por la cara, la inclinación y los símbolos */
+/* reduced motion: no movement; the mood still reads from the face, the tilt and the symbols */
 @media (prefers-reduced-motion:reduce){
   .musi *{animation:none!important;transition:none!important}
   .musi[data-talking=true] .m-talk{opacity:1}
@@ -117,7 +117,7 @@ export function MusiCharacter({
   className = 'size-32',
 }: {
   mood: MusiMood
-  /** Boca que habla (cuando suena la voz); se superpone a cualquier mood. */
+  /** Talking mouth (while a bubble appears or the voice plays); overrides any mood. */
   talking?: boolean
   className?: string
 }) {
@@ -143,7 +143,7 @@ export function MusiCharacter({
             <circle cx="90" cy="66" r="10" />
           </clipPath>
 
-          {/* ojos redondos + pupilas + párpado (parpadeo) */}
+          {/* round eyes + pupils + lid (blink) */}
           <g className="e-round fade">
             <circle cx="50" cy="66" r="10" fill={C.white} />
             <circle cx="90" cy="66" r="10" fill={C.white} />
@@ -157,12 +157,12 @@ export function MusiCharacter({
           <g clipPath={`url(#${uid}-eyes)`}>
             <rect className="lids" x="36" y="54" width="68" height="24" fill={C.body} style={{ transformOrigin: '50% 0%', transform: 'scaleY(0)' }} />
           </g>
-          {/* ojos felices ^ ^ (cheer) */}
+          {/* happy eyes ^ ^ (cheer) */}
           <g className="e-happy fade" fill="none" stroke={C.ink} strokeWidth="4.5" strokeLinecap="round">
             <path d="M40 70 Q50 56 60 70" />
             <path d="M80 70 Q90 56 100 70" />
           </g>
-          {/* ojos de lado, entrecerrados (hmm) */}
+          {/* sideways, squinting eyes (hmm) */}
           <g className="e-side fade">
             <ellipse cx="50" cy="67" rx="10" ry="6.5" fill={C.white} />
             <ellipse cx="90" cy="67" rx="10" ry="6.5" fill={C.white} />
@@ -170,7 +170,7 @@ export function MusiCharacter({
             <circle cx="85" cy="67" r="4.2" fill={C.ink} />
           </g>
 
-          {/* cejas */}
+          {/* brows */}
           <g className="brows fade" fill="none" stroke={C.line} strokeWidth="4" strokeLinecap="round">
             <path d="M40 50 L58 44" />
             <path d="M100 50 L82 44" />
@@ -185,7 +185,7 @@ export function MusiCharacter({
             <circle cx="108" cy="88" r="8" />
           </g>
 
-          {/* bocas: todas montadas, se cruzan por opacity */}
+          {/* mouths: all mounted, cross-faded with opacity */}
           <path className="m-smile fade" d="M56 96 Q70 108 84 96" fill="none" stroke={C.mouth} strokeWidth="4.5" strokeLinecap="round" />
           <path className="m-open fade" d="M52 92 Q70 120 88 92 Z" fill={C.mouth} stroke={C.mouth} strokeWidth="3" strokeLinejoin="round" />
           <path className="m-soft fade" d="M58 98 Q70 104 82 98" fill="none" stroke={C.mouth} strokeWidth="4.5" strokeLinecap="round" />
@@ -195,7 +195,7 @@ export function MusiCharacter({
         </g>
       </g>
 
-      {/* símbolos fuera del cuerpo: dicen el mood sin texto */}
+      {/* symbols outside the body: tell the mood without text */}
       <g className="dots fade" fill="#4b5563">
         <circle cx="112" cy="26" r="4" />
         <circle cx="122" cy="16" r="5" />

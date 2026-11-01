@@ -1,7 +1,7 @@
-/** Efectos de ejercicio con WAAPI puro (0 kB de librería). Todos respetan prefers-reduced-motion. */
+/** Exercise effects with plain WAAPI (no library). All of them respect prefers-reduced-motion. */
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches
 
-/** Error: sacudida suave (no castiga). Fallback: destello de borde, sin movimiento. */
+/** Wrong: a soft shake (not a punishment). Fallback: an outline flash, no movement. */
 export function shake(el: HTMLElement) {
   if (reduced()) {
     el.animate([{ outlineColor: 'transparent' }, { outlineColor: '#b45309' }, { outlineColor: 'transparent' }], { duration: 600 })
@@ -13,7 +13,7 @@ export function shake(el: HTMLElement) {
   )
 }
 
-/** Acierto: el check rebota (overshoot). Fallback: aparece con fade. */
+/** Right: the check mark bounces in (overshoot). Fallback: a fade-in. */
 export function popIn(el: HTMLElement) {
   const frames = reduced()
     ? [{ opacity: 0 }, { opacity: 1 }]
@@ -21,13 +21,13 @@ export function popIn(el: HTMLElement) {
   el.animate(frames, { duration: reduced() ? 150 : 450, easing: 'cubic-bezier(.34,1.56,.64,1)', fill: 'both' })
 }
 
-/** Corte de la barra que encaja: se mueve al sitio con resorte y la barra "late" una vez. */
+/** A cut that snaps into place with a spring. */
 export function snapTo(el: HTMLElement, fromPx: number) {
   if (reduced()) return
   el.animate([{ transform: `translateX(${fromPx}px)` }, { transform: 'translateX(0)' }], { duration: 260, easing: 'cubic-bezier(.34,1.56,.64,1)' })
 }
 
-/** Confeti a mano: ~25 divs con WAAPI, se autodestruyen. ~0.5 kB min+gzip. Reduced motion: no hace nada (Musi y el check bastan). */
+/** Hand-rolled confetti: ~25 self-removing elements animated with WAAPI. Reduced motion: no-op (Musi and the check mark are enough). */
 export function confetti(origin: HTMLElement, n = 24) {
   if (reduced()) return
   const r = origin.getBoundingClientRect()

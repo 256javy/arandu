@@ -43,3 +43,19 @@ body {
   outline: 3px solid var(--ring);
   outline-offset: 2px;
 }
+
+/* Musi's bubble and the celebration card pop in; no movement with reduced motion. */
+@keyframes bubble-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes pop-in {
+  0% { opacity: 0; transform: scale(0.6); }
+  60% { opacity: 1; transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+.bubble-in { animation: bubble-in 0.22s cubic-bezier(.22, 1, .36, 1); }
+.pop-in { animation: pop-in 0.45s cubic-bezier(.34, 1.56, .64, 1); }
+@media (prefers-reduced-motion: reduce) {
+  .bubble-in, .pop-in { animation: none; }
+}

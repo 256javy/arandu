@@ -32,7 +32,6 @@ function makeExplain(v: Variant): ExerciseDefinition<ExplainState> {
   function Explain(_: ExerciseProps<ExplainState>) {
     return (
       <div className="flex flex-col gap-5">
-        <p className="text-lg">{v.goal}</p>
         <div className="flex flex-col gap-2">{v.visual}</div>
       </div>
     )
@@ -63,10 +62,10 @@ export const explainEquivalence = makeExplain({
   id: 'fractions.explain-equivalence',
   skill: 'fraction.equivalence',
   title: '¿2/4 o 1/2?',
-  prompt: '¿2/4 es más que 1/2?',
+  prompt: '¿2/4 o 1/2? ¿Cuál es más?',
   goal: 'Tu primo dice que 2/4 de una barra de chocolate es más que 1/2 porque tiene números más grandes. ¿Tiene razón?',
   intro: 'Tu primo dice que dos cuartos de un chocolate es más que un medio, porque tiene números más grandes. ¿Tiene razón? Explicámelo con tus palabras.',
-  firstBubble: 'Mirá las barras y contame qué pensás.',
+  firstBubble: 'Contame cómo lo pensaste.',
   visual: (
     <>
       <Bar parts={4} filled={2} label="2/4" />
@@ -79,7 +78,7 @@ export const explainCompare = makeExplain({
   id: 'fractions.explain-compare',
   skill: 'fraction.compare',
   title: '¿Qué batería dura más?',
-  prompt: '¿3/4 o 2/3: cuál es más?',
+  prompt: '¿Cuál dura más? ¿Por qué?',
   goal: 'El celular de tu mamá tiene 3/4 de batería y el de tu hermano, 2/3. ¿Cuál tiene más batería? ¿Por qué?',
   intro: 'Probemos de otra forma. El celular de tu mamá tiene tres cuartos y el de tu hermano, dos tercios. ¿Cuál tiene más batería? Contame cómo lo pensaste.',
   firstBubble: 'Contame cómo lo pensaste.',

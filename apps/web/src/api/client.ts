@@ -35,7 +35,8 @@ export interface TurnRequest {
   goal: string
   stateDescription: string
   evidence: Evidence[]
-  event: 'submitted' | 'stuck' | 'message'
+  /** Every kid answer (action or text) is `submitted`; the web no longer sends free chat. */
+  event: 'submitted' | 'stuck'
   message?: string
   history: HistoryItem[]
 }

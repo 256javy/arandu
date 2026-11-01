@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 export function useSpeech() {
-  const [muted, setMuted] = useState(false)
+  // muted by default: the kid turns the voice on from the dock
+  const [muted, setMuted] = useState(true)
   const [speaking, setSpeaking] = useState(false)
   // the user may have interacted before this component mounted (e.g. clicking a link)
   const activated = useRef(typeof navigator !== 'undefined' && !!navigator.userActivation?.hasBeenActive)
