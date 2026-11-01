@@ -8,6 +8,11 @@ spring:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/arandu}
     username: ${SPRING_DATASOURCE_USERNAME:arandu}
     password: ${SPRING_DATASOURCE_PASSWORD:arandu}
+    hikari:
+      # Serverless Postgres (Neon) suspends when idle; don't pin connections open.
+      minimum-idle: 0
+      maximum-pool-size: 5
+      idle-timeout: 60000
   jpa:
     open-in-view: false
     hibernate:

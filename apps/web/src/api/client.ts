@@ -66,6 +66,11 @@ function write(key: string, value: string | null) {
   }
 }
 
+/** The API scales to zero; start waking it up as soon as the app loads. */
+export function wakeApi() {
+  fetch(`${BASE}/actuator/health`, { mode: 'no-cors' }).catch(() => undefined)
+}
+
 export const getToken = () => read(TOKEN_KEY)
 export const getStoredLearnerId = () => read(LEARNER_KEY)
 export const storeLearnerId = (id: string | null) => write(LEARNER_KEY, id)
