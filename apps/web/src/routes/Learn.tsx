@@ -2,7 +2,7 @@ import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, Navigate, useSearch } from '@tanstack/react-router'
 import { MissionArt } from '@/components/MissionArt'
-import { BatteryMedium, LifeBuoy, MessageCircle, MessagesSquare, Pizza, RotateCcw, Star, Volume2, VolumeX, X } from 'lucide-react'
+import { BatteryMedium, CookingPot, LifeBuoy, MessageCircle, MessagesSquare, Pizza, RotateCcw, Star, Volume2, VolumeX, X } from 'lucide-react'
 import { getNext, getStoredLearnerId, getToken, tutorTurn, wakeApi, type Plan, type TurnRequest } from '@/api/client'
 import { Button } from '@/components/ui/button'
 import { EXERCISES } from '@/exercises'
@@ -12,11 +12,12 @@ import { MusiCharacter, type MusiMood } from '@/musi/MusiCharacter'
 import { useSpeech } from '@/musi/useSpeech'
 import { COPY, initMission, missionReducer } from './mission'
 
-/** The three stops of the path; explain variants share the last one. */
+/** The stops of the path, in teaching order; explain variants share one. The path ends when all are done. */
 const PATH = [
   { label: 'Pizza', icon: Pizza, ids: ['fractions.share-bar'] },
   { label: 'Batería', icon: BatteryMedium, ids: ['fractions.number-line'] },
   { label: 'Explicar', icon: MessageCircle, ids: ['fractions.explain-compare', 'fractions.explain-equivalence'] },
+  { label: 'Receta', icon: CookingPot, ids: ['proportions.recipe'] },
 ]
 const nodeOf = (exerciseId: string) => PATH.findIndex((p) => p.ids.includes(exerciseId))
 
@@ -286,7 +287,13 @@ function Mission({ learnerId, plan, done, stars, onComplete, onNext, onBonus }: 
         Reintentar
       </Button>
     )
-  else primary = <Button type="submit" size="lg" disabled={!canSubmit}>{isText ? 'Enviar' : 'Comprobar'}</Button>
+  else
+    primary = (
+      // aria-disabled (not disabled) while Musi thinks, so keyboard focus stays on the button
+      <Button type="submit" size="lg" disabled={!canSubmit && !busy} aria-disabled={busy || undefined} className="aria-disabled:cursor-wait aria-disabled:opacity-50">
+        {isText ? 'Enviar' : 'Comprobar'}
+      </Button>
+    )
 
   return (
     <div className="flex min-h-[calc(100dvh-6rem)] flex-col gap-4">
@@ -366,7 +373,7 @@ function Mission({ learnerId, plan, done, stars, onComplete, onNext, onBonus }: 
             <MessagesSquare aria-hidden />
           </Button>
           {!isText && (
-            <Button type="button" variant="outline" size="icon" aria-label="De nuevo" title="De nuevo" disabled={busy || m.phase === 'done'} onClick={() => onChange(exercise.initialState())}>
+            <Button type="button" variant="outline" size="icon" aria-label="De nuevo" title="De nuevo" disabled={busy || m.phase === 'done'} onClick={() => onChange(exercise.resetStep ? exercise.resetStep(state) : exercise.initialState())}>
               <RotateCcw aria-hidden />
             </Button>
           )}
