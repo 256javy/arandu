@@ -29,6 +29,7 @@ It is not a chatbot: the learning happens in the exercises, an agent keeps a per
 |---|---|---|
 | Muse Spark 1.3 (Meta Model API) | `apps/api` | Musi's turns; judging free-text explanations against a rubric |
 | Muse Spark 1.3 | `evals` | Simulated kids, tutors under test and the judge (kids can optionally run on Muse Spark Open via Fireworks) |
+| SAM 3.1 (Meta Model API) | `apps/api` + `apps/web` | "Photo of the real world": segments the portions in a photo of food cut at home; the browser decodes the masks with `@meta-sam/parser` and a deterministic check judges equal parts and the fraction eaten. The photo is processed in memory and never stored (`store=false`, nothing on disk or in logs) |
 
 Mission illustrations generated once with Muse Image (Meta) via `tools/illustrations/generate.py`; not generated at runtime. Style prompt (prepended to each scene, with the Musi SVG render as reference image):
 
@@ -108,3 +109,8 @@ Everything in this repository was built during the [Meta Global AI Developer Hac
 ## License
 
 [MIT](LICENSE)
+
+Third-party material:
+
+- `@meta-sam/parser` (SAM mask decoder, bundled in the web app) is distributed under the SAM License by Meta: see [THIRD_PARTY_LICENSES/SAM-LICENSE.txt](THIRD_PARTY_LICENSES/SAM-LICENSE.txt), also served by the web app at `/licenses/SAM-LICENSE.txt`.
+- `apps/web/public/samples/pizza.jpg`: photo by igorovsyannykov ([Pixabay](https://pixabay.com/en/pizza-food-italian-baked-cheese-3007395/), via [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Pizza-3007395.jpg)), CC0 1.0. Sources in `apps/web/public/samples/SOURCES.md`.

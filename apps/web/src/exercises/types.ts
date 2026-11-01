@@ -1,5 +1,5 @@
 export type Confidence = 'high' | 'medium' | 'low'
-export type Mode = 'manipulable' | 'number-line' | 'explain'
+export type Mode = 'manipulable' | 'number-line' | 'explain' | 'photo'
 export interface Evidence { skill: string; ok: boolean; confidence: Confidence; detail: string }
 
 /** The exercise only renders the visual; the single action (check/send) lives in Learn's dock. */

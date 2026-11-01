@@ -84,6 +84,7 @@ public final class Planner {
             case MANIPULABLE -> "manipulable";
             case NUMBER_LINE -> "recta numérica";
             case EXPLAIN -> "explicar con palabras";
+            case PHOTO -> "foto del mundo real";
         };
     }
 }

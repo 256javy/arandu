@@ -13,6 +13,13 @@ spring:
       minimum-idle: 0
       maximum-pool-size: 5
       idle-timeout: 60000
+  servlet:
+    multipart:
+      # Slightly above the 4 MB the vision endpoint accepts, so it can answer 413 itself.
+      max-file-size: 5MB
+      max-request-size: 6MB
+      # Keep uploads in memory: the photo must never touch the disk.
+      file-size-threshold: 6MB
   jpa:
     open-in-view: false
     hibernate:
