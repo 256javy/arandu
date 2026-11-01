@@ -99,7 +99,7 @@ public class SpotlightService {
                     .append(", ").append(Planner.label(e.getSkill())).append(": ")
                     .append(e.isOk() ? "lo logró" : "todavía no");
             if (e.getQuote() != null) {
-                sb.append(". Escribió: «").append(e.getQuote().replace("<", "").replace(">", "")).append("»");
+                sb.append(". Escribió: «").append(quoteText(e.getQuote())).append("»");
             }
             // detail is free text from the client or the judge: never sent here.
             lines.add(sb.toString());
@@ -107,6 +107,11 @@ public class SpotlightService {
         String practicing = next == null || next.skill() == null ? "repaso general" : Planner.label(next.skill());
         return "<datos>\nLo que hizo en los últimos 7 días (de lo más viejo a lo más nuevo):\n"
                 + String.join("\n", lines) + "\nLo próximo que va a practicar: " + practicing + "\n</datos>";
+    }
+
+    /** The kid's words can't close the quote, open tags or start a new line of data. */
+    static String quoteText(String quote) {
+        return quote.replaceAll("[«»<>\\r\\n]+", " ").strip();
     }
 
     private static String kind(String exerciseId) {
