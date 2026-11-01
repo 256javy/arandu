@@ -1,0 +1,38 @@
+[
+  {
+    "id": "share-bar",
+    "file": "share-bar.webp",
+    "scene": "Musi, drawn exactly as in the reference (perfectly round amber body with dark-brown outline and two round ears), sits with four small friends (cute generic animal cubs, all different species) around a round wooden table, all looking happily at an empty big baking tray in the middle of the table, waiting for a pizza to arrive. No food shown on the table yet.",
+    "alt": "Musi y cuatro amigos esperan una pizza alrededor de la mesa"
+  },
+  {
+    "id": "number-line",
+    "file": "number-line.webp",
+    "scene": "Musi looks curiously at two smartphones lying on a desk, each plugged into a charger cable, with soft glowing screens. A desk lamp and a plant in the background.",
+    "alt": "Musi mira dos celulares que se están cargando sobre el escritorio"
+  },
+  {
+    "id": "explain-compare",
+    "file": "explain-compare.webp",
+    "scene": "Musi tilts its head thoughtfully with a small thought bubble containing a glowing light bulb, in front of two smartphones standing side by side on a table.",
+    "alt": "Musi piensa con una lamparita mientras compara dos celulares"
+  },
+  {
+    "id": "explain-equivalence",
+    "file": "explain-equivalence.webp",
+    "scene": "Musi and one small animal friend look at a chocolate bar on a plate between them, both looking unsure and curious, heads tilted, a small question mark floating nearby (a drawn symbol only).",
+    "alt": "Musi y un amigo dudan frente a una tableta de chocolate"
+  },
+  {
+    "id": "photo",
+    "file": "photo.webp",
+    "scene": "Musi, drawn exactly as in the reference with a perfectly round circular body, stands behind a table and holds a small retro photo camera with two tiny stub arms, pointing at a whole round cake on the table, ready to take a picture.",
+    "alt": "Musi con una cámara de fotos frente a una torta"
+  },
+  {
+    "id": "celebrate",
+    "file": "celebrate.webp",
+    "scene": "Musi jumps with joy arms raised, big happy smile, colorful confetti and streamers falling all around, party mood.",
+    "alt": "Musi festeja con confeti"
+  }
+]

@@ -1,0 +1,44 @@
+[
+  {
+    "id": "share-bar",
+    "file": "share-bar.webp",
+    "alt": "Musi y cuatro amigos esperan una pizza alrededor de la mesa",
+    "model": "muse-image-1.0",
+    "date": "2026-11-01"
+  },
+  {
+    "id": "number-line",
+    "file": "number-line.webp",
+    "alt": "Musi mira dos celulares que se están cargando sobre el escritorio",
+    "model": "muse-image-1.0",
+    "date": "2026-11-01"
+  },
+  {
+    "id": "explain-compare",
+    "file": "explain-compare.webp",
+    "alt": "Musi piensa con una lamparita mientras compara dos celulares",
+    "model": "muse-image-1.0",
+    "date": "2026-11-01"
+  },
+  {
+    "id": "explain-equivalence",
+    "file": "explain-equivalence.webp",
+    "alt": "Musi y un amigo dudan frente a una tableta de chocolate",
+    "model": "muse-image-1.0",
+    "date": "2026-11-01"
+  },
+  {
+    "id": "photo",
+    "file": "photo.webp",
+    "alt": "Musi con una cámara de fotos frente a una torta",
+    "model": "muse-image-1.0",
+    "date": "2026-11-01"
+  },
+  {
+    "id": "celebrate",
+    "file": "celebrate.webp",
+    "alt": "Musi festeja con confeti",
+    "model": "muse-image-1.0",
+    "date": "2026-11-01"
+  }
+]
