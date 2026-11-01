@@ -62,12 +62,14 @@ A tutor turn is almost all LLM time. The local check gives instant feedback, so 
 |---|---:|---:|---:|---:|
 | Before: production, Nov 1, `low` effort | 4.88 s | 4.00 s | 5.37 s | 6.7 s, with 503s |
 | After: local, warm, `minimal` effort (n=5) | 1.57 s | 1.27 s | 2.65 s | n/a |
-| After: production | <!-- TODO prod numbers --> TBD | TBD | TBD | TBD |
+| After: production, Nov 1, `minimal` effort (n=5, p50 / p90) | 1.86 / 3.53 s | 2.74 / 3.02 s | 4.54 / 5.67 s | ~5 s outside the warm window, retried by the web |
+
+In the browser (click to Musi's bubble, production): pizza 2.36 s, number line 2.15 s, explain 3.21 s (p50). The local check shows right/wrong in under 100 ms before that. Other production timings (p50): SAM 3.1 portions 1.53 s, family spotlight 0.24 s from cache (it is regenerated in the background after each turn).
 
 What changed:
 - `minimal` reasoning effort per role.
 - One-sentence bubbles, so fewer output tokens.
-- A Cloudflare cron worker that keeps the API warm.
+- A Cloudflare cron worker that keeps the API warm during recording and judging (Vercel scales the container to zero after about a minute), and the web retries a platform 503 instead of showing an error.
 
 ## Evaluation
 
