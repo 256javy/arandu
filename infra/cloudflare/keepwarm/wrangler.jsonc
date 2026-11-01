@@ -1,0 +1,8 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "arandu-keepwarm",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "triggers": { "crons": ["*/4 * * * *"] },
+  "vars": { "API_URL": "https://arandu-api-mocha.vercel.app" }
+}
