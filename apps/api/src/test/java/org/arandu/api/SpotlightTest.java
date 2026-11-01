@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -27,6 +28,7 @@ import org.arandu.api.family.SpotlightService;
 import org.arandu.api.learner.EvidenceRepository;
 import org.arandu.api.tutor.TutorConfig;
 import org.arandu.api.tutor.TutorModel;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -81,6 +83,40 @@ class SpotlightTest {
                                 {"learnerId":"%s","exerciseId":"fractions.explain-equivalence","event":"submitted",
                                  "message":"%s","history":[]}""".formatted(id, text)))
                 .andExpect(status().isOk());
+        // The turn refreshes the spotlight in the background; let it finish so counts are deterministic.
+        assertThat(spotlightService.awaitBackgroundIdle(Duration.ofSeconds(10))).isTrue();
+    }
+
+    @AfterEach
+    void drainBackground() throws InterruptedException {
+        assertThat(spotlightService.awaitBackgroundIdle(Duration.ofSeconds(10))).isTrue();
+    }
+
+    @Test
+    void aTurnWithEvidenceRefreshesTheSpotlightInTheBackground() throws Exception {
+        when(spotlightModel.complete(anyList())).thenReturn("Resumen listo antes de entrar.");
+        String auth = signup();
+        String id = learner(auth);
+        explain(auth, id, "son la mitad porque dos cuartos forman un medio");
+        verify(spotlightModel, times(1)).complete(anyList());
+        assertThat(spotlights.findById(UUID.fromString(id))).isPresent();
+
+        // /familia finds it cached: no model call on the GET.
+        mvc.perform(get("/api/learners/" + id + "/spotlight").header("Authorization", auth))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.text").value("Resumen listo antes de entrar."));
+        verify(spotlightModel, times(1)).complete(anyList());
+    }
+
+    @Test
+    void aFailedBackgroundRefreshDoesNotBreakTheTurn() throws Exception {
+        when(spotlightModel.complete(anyList())).thenThrow(new IllegalStateException("model down"));
+        String auth = signup();
+        String id = learner(auth);
+        explain(auth, id, "son la mitad"); // asserts 200
+        verify(spotlightModel, times(1)).complete(anyList());
+        mvc.perform(get("/api/learners/" + id + "/evidence").header("Authorization", auth))
+                .andExpect(jsonPath("$.length()").value(1));
     }
 
     @Test
@@ -158,18 +194,21 @@ class SpotlightTest {
         });
         String auth = signup();
         String id = learner(auth);
-        explain(auth, id, "son la mitad");
+        // The turn's background refresh is the first generation; it blocks in the model until released.
+        mvc.perform(post("/api/tutor/turn").header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"learnerId":"%s","exerciseId":"fractions.explain-equivalence","event":"submitted",
+                                 "message":"son la mitad","history":[]}""".formatted(id)))
+                .andExpect(status().isOk());
         UUID learnerId = UUID.fromString(id);
+        assertThat(started.await(10, TimeUnit.SECONDS)).isTrue();
         try (ExecutorService pool = Executors.newFixedThreadPool(4)) {
-            Future<SpotlightService.SpotlightView> first = pool.submit(() -> spotlightService.spotlight(learnerId));
-            assertThat(started.await(10, TimeUnit.SECONDS)).isTrue();
             List<Future<SpotlightService.SpotlightView>> others = List.of(
                     pool.submit(() -> spotlightService.spotlight(learnerId)),
                     pool.submit(() -> spotlightService.spotlight(learnerId)),
                     pool.submit(() -> spotlightService.spotlight(learnerId)));
             Thread.sleep(200);
             release.countDown();
-            assertThat(first.get(10, TimeUnit.SECONDS).text()).isEqualTo("Resumen compartido.");
             for (Future<SpotlightService.SpotlightView> f : others) {
                 assertThat(f.get(10, TimeUnit.SECONDS).text()).isEqualTo("Resumen compartido.");
             }

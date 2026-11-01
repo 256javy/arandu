@@ -28,6 +28,9 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import org.arandu.api.family.SpotlightService;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @RestController
 @RequestMapping("/api/tutor")
@@ -74,10 +77,12 @@ public class TutorController {
     private final EvidenceRepository evidenceRepo;
     private final TutorModel model;
     private final Assessor assessor;
+    private final SpotlightService spotlight;
     private final String systemPrompt;
 
     public TutorController(LearnerService learners, EvidenceRepository evidenceRepo, TutorModel model,
-                           Assessor assessor) {
+                           Assessor assessor, SpotlightService spotlight) {
+        this.spotlight = spotlight;
         this.learners = learners;
         this.evidenceRepo = evidenceRepo;
         this.model = model;
@@ -119,6 +124,23 @@ public class TutorController {
             return null;
         }
         return scrubbed;
+    }
+
+    /**
+     * New evidence makes the family summary stale: regenerate it in the background once this turn's
+     * transaction commits (so the refresh sees the new rows and never holds or breaks the turn's transaction).
+     */
+    private void refreshSpotlightAfterCommit(UUID learnerId) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    spotlight.refreshInBackground(learnerId);
+                }
+            });
+        } else {
+            spotlight.refreshInBackground(learnerId);
+        }
     }
 
     static final int DETAIL_MAX = 200;
@@ -167,6 +189,9 @@ public class TutorController {
             // Only the judged explanation keeps the kid's (scrubbed) words, for the family view.
             evidenceRepo.save(new Evidence(req.learnerId(), e.skill(), e.ok(), e.confidence(),
                     req.exerciseId(), e.detail(), e == judged ? quotable(req.message()) : null));
+        }
+        if (!items.isEmpty()) {
+            refreshSpotlightAfterCommit(req.learnerId());
         }
 
         List<TutorModel.Message> messages = new ArrayList<>();
