@@ -75,4 +75,10 @@ test('kid journey: pizza, notation, number line, mode switch, explain and the fa
   await expect(recent.getByText(/✓/).first()).toBeVisible()
   await expect(page.getByText('La batería del celular').first()).toBeVisible()
   await expect(page.getByText(/Arandu eligió/)).toBeVisible()
+  // the kid's own explanation is quoted, and the weekly summary is there
+  await expect(recent.locator('blockquote').filter({ hasText: '«el de mamá porque le falta menos para llenarse»' })).toBeVisible()
+  const week = page.locator('[aria-live="polite"]').filter({ has: page.getByText('Esta semana', { exact: true }) })
+  await expect(week).toBeVisible()
+  await expect(week).toHaveAttribute('aria-busy', 'false', { timeout: 20_000 })
+  await expect(week.locator('p').first()).not.toBeEmpty()
 })

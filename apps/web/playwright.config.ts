@@ -30,7 +30,9 @@ export default defineConfig({
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : {
-        command: `pnpm exec vite --port ${PORT} --strictPort --host 127.0.0.1`,
+        // A production build served by `vite preview`: a handful of bundled files instead of hundreds of
+        // on-demand dev modules, so a page load has far fewer requests to lose, and no first-compile lag.
+        command: `pnpm exec vite build --outDir dist-e2e --emptyOutDir && pnpm exec vite preview --outDir dist-e2e --port ${PORT} --strictPort --host 127.0.0.1`,
         url: baseURL,
         reuseExistingServer: !process.env.CI,
         env: { VITE_API_URL: apiUrl },
