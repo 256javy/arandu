@@ -93,8 +93,12 @@ Caveats: kids and judge are the same model family as the tutor, n is small, and 
 
 ## Rubric judge check
 
-The product itself uses Muse Spark to judge free-text explanations (medium-confidence evidence). `rubric_check.py` sends 12 hand-labelled answers (right and wrong, for both explain exercises) through a running API and prints how often the judge agrees with the label:
+The product itself uses Muse Spark to judge free-text explanations (medium-confidence evidence). `rubric_check.py` sends 33 hand-labelled answers through a running API and prints how often the judge agrees with the label. The answers are written the way 9–12 year olds type: misspellings, `xq`, no accents, one-word answers, correct ideas in their own words, correct answers with no reason, wrong reasons that land on the right answer, asking Musi for the answer, and off-topic text. Each case carries a one-line rationale.
+
+Partial-credit policy: a correct idea in the kid's own words counts as demonstrated even if informal or short on detail ("tienen la misma proporción del total"); a correct answer with no reason, or with an invalid reason ("porque 4 es más grande que 3"), does not. When the answer falls short, the judge also returns a short `missing` hint that is appended to the evidence detail (`Falta: …`) so Musi can guide the kid to complete the idea.
 
 ```bash
-python3 rubric_check.py http://localhost:8080   # standard library only; creates a throwaway account
+python3 rubric_check.py http://localhost:8080 2   # standard library only; creates a throwaway account; 2 runs
 ```
+
+Results with `muse-spark-1.3` (2026-11-01, 2 runs): 32/33 and 32/33. The only disagreement in both runs is "si dibujo dos barras iguales la de 3/4 llega mas lejos" (labelled correct as a visual argument); the judge asks for a reason why the bar is longer. It is a borderline case and stays labelled as is.
