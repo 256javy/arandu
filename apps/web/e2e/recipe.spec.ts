@@ -3,7 +3,6 @@ import { expect, test } from './fixtures.ts'
 import { isTouch, tap, waitReply } from './helpers.ts'
 import { mockApi } from './mock-api.ts'
 
-const REPLY = /Mirá bien lo que hiciste/
 
 async function add(page: Page, name: string, times: number, touch: boolean) {
   for (let i = 0; i < times; i++) await tap(page.getByRole('button', { name: `Más ${name}` }), touch)
@@ -19,8 +18,7 @@ test('recipe: 8 wrong, 8 right, then 6 right; ↺ restarts only the 6-people ste
 
   // 8 wrong: only more flour
   await add(page, 'harina', 1, touch)
-  await check.click()
-  await waitReply(page, REPLY)
+  await waitReply(page, () => check.click())
   await expect(page.getByRole('heading', { name: 'Hacé panqueques para 8.' })).toBeVisible()
   if (!touch) await expect(check).toBeFocused()
 
