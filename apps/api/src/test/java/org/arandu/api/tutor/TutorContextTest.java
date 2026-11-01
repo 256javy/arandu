@@ -44,8 +44,23 @@ class TutorContextTest {
     void quotesOnlyCleanText() {
         assertThat(TutorController.quotable("dos cuartos son la mitad, 2/4 = 1/2")).isEqualTo("dos cuartos son la mitad, 2/4 = 1/2");
         assertThat(TutorController.quotable("mi mail es a@b.com")).isNull();
-        assertThat(TutorController.quotable("1/2 2/4 3/6 4/8")).isNull();
         assertThat(TutorController.quotable("  ")).isNull();
+    }
+
+    @Test
+    void fractionsAndShortNumbersDoNotBlockAQuote() {
+        String compare = "el de mama xq a 3/4 le falta 1/4 y a 2/3 le falta 1/3, y 1/4 es mas chico";
+        assertThat(TutorController.quotable(compare)).isEqualTo(compare);
+        assertThat(TutorController.quotable("1/2 2/4 3/6 4/8")).isEqualTo("1/2 2/4 3/6 4/8");
+        assertThat(TutorController.quotable("9 de 12 es como 3 de 4, y 8/12 es 2/3")).isNotNull();
+    }
+
+    @Test
+    void phonesAndLongNumbersStillBlockAQuote() {
+        assertThat(TutorController.quotable("3/4 es mas, mi cel es 0981 123 456")).isNull();
+        assertThat(TutorController.quotable("1/2 1234 5678")).isNull();
+        assertThat(TutorController.quotable("codigo 1234567")).isNull();
+        assertThat(TutorController.quotable("123/456 y 789/1011")).isNull();
     }
 
     @Test
