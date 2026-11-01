@@ -3,6 +3,6 @@
   "name": "arandu-keepwarm",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
-  "triggers": { "crons": ["*/4 * * * *"] },
+  "triggers": { "crons": ["* * * * *"] },
   "vars": { "API_URL": "https://arandu-api-mocha.vercel.app" }
 }

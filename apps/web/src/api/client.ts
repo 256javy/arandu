@@ -81,15 +81,28 @@ export const getToken = () => read(TOKEN_KEY)
 export const getStoredLearnerId = () => read(LEARNER_KEY)
 export const storeLearnerId = (id: string | null) => write(LEARNER_KEY, id)
 
+/** Waits before each retry of a 503: the API's container answers 503 while it cold-starts (~5 s). */
+export const COLD_RETRY_MS = [1500, 3000]
+
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
 async function http<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getToken()
-  const res = await fetch(`${BASE}${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  })
+  const send = () =>
+    fetch(`${BASE}${path}`, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    })
+  let res = await send()
+  // A 503 comes from the platform before the app runs (cold start), so nothing was written: retrying is safe.
+  for (const ms of COLD_RETRY_MS) {
+    if (res.status !== 503) break
+    await wait(ms)
+    res = await send()
+  }
   if (res.status === 401 && token) {
     write(TOKEN_KEY, null)
     storeLearnerId(null)
