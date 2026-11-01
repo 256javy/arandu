@@ -2,8 +2,10 @@ import { useEffect, useLayoutEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { HttpError } from '@/api/client'
 import {
+  allConfident,
   decodePortions,
   findPortions,
+  keepPortions,
   looksEqual,
   merge,
   prepareImage,
@@ -16,11 +18,16 @@ export type PhotoPhase = 'capture' | 'loading' | 'confirm' | 'eat'
 
 export interface PhotoState {
   phase: PhotoPhase
+  /** What the photo shows, chosen before taking it; steers SAM's prompt. */
+  hint: Hint | null
   /** Object URL of the downscaled photo: lives only in this tab's memory. */
   image: string | null
   width: number
   height: number
+  /** Current portions: SAM's matches after the kid's joins and removals. */
   portions: PhotoPortion[]
+  /** Portions the kid removed. They still count for "equal parts", so removing can't fake equality. */
+  removed: PhotoPortion[]
   /** Confirm step: portions picked to join or remove. */
   selected: string[]
   /** The kid's answer to "are they equal parts?". */
@@ -34,20 +41,30 @@ export interface PhotoState {
 
 export const SAMPLE_PHOTO = '/samples/pizza.jpg'
 
+export const HINTS: { id: Hint; emoji: string; label: string }[] = [
+  { id: 'pizza', emoji: '🍕', label: 'Pizza' },
+  { id: 'chocolate', emoji: '🍫', label: 'Chocolate' },
+  { id: 'cake', emoji: '🎂', label: 'Torta' },
+]
+
 const COLORS = ['#f59e0b', '#14b8a6', '#8b5cf6', '#fb7185', '#22c55e', '#0ea5e9', '#eab308', '#ec4899', '#f97316', '#6366f1']
 
 export const initialPhotoState = (): PhotoState => ({
-  phase: 'capture', image: null, width: 0, height: 0, portions: [], selected: [], saysEqual: null,
-  eaten: [], num: '', den: '', slot: 'num', error: null,
+  phase: 'capture', hint: null, image: null, width: 0, height: 0, portions: [], removed: [], selected: [],
+  saysEqual: null, eaten: [], num: '', den: '', slot: 'num', error: null,
 })
 
 const toggle = (list: string[], id: string) => (list.includes(id) ? list.filter((x) => x !== id) : [...list, id])
+
+/** Equality is judged on everything SAM found (joins applied), including what the kid removed. */
+export const judgedPortions = (s: Pick<PhotoState, 'portions' | 'removed'>) => [...s.portions, ...s.removed]
 
 function describe(s: PhotoState): string {
   const n = s.portions.length
   if (s.phase === 'capture' || s.phase === 'loading') return 'Todavía no hay foto.'
   let text = `Sacó una foto con ${n} ${n === 1 ? 'porción' : 'porciones'}`
-  text += looksEqual(s.portions) ? ', que parecen casi iguales.' : ', de tamaños bastante distintos.'
+  text += looksEqual(judgedPortions(s)) ? ', que parecen casi iguales.' : ', de tamaños bastante distintos.'
+  if (s.removed.length) text += ` Quitó ${s.removed.length} que no eran porciones.`
   if (s.saysEqual !== null) text += s.saysEqual ? ' Dijo que son partes iguales.' : ' Dijo que no son partes iguales.'
   if (s.eaten.length) text += ` Eligió ${s.eaten.length} para comer.`
   if (s.num || s.den) text += ` Escribió ${s.num || '?'}/${s.den || '?'}.`
@@ -56,15 +73,16 @@ function describe(s: PhotoState): string {
 
 function check(s: PhotoState): Evidence[] {
   const n = s.portions.length
-  const equal = looksEqual(s.portions)
+  const judged = judgedPortions(s)
+  const equal = looksEqual(judged)
   const evidence: Evidence[] = []
   if (s.saysEqual !== null) {
     const ok = s.saysEqual === equal
     evidence.push({
       skill: 'fraction.equal-parts',
       ok,
-      // Pixel areas in a photo carry perspective error: never 'high'.
-      confidence: 'medium',
+      // After removals the photo's verdict is shaky; otherwise trust it as much as SAM trusts every match.
+      confidence: s.removed.length ? 'low' : allConfident(judged) ? 'high' : 'medium',
       detail: `Foto con ${n} porciones ${equal ? 'casi iguales' : 'distintas'}; dijo que ${s.saysEqual ? '' : 'no '}son iguales.`,
     })
   }
@@ -103,17 +121,21 @@ function Photo({ state, onChange, disabled }: ExerciseProps<PhotoState>) {
     if (latest.current.image) URL.revokeObjectURL(latest.current.image)
   }, [])
 
-  async function analyze(source: Blob, hint?: Hint) {
+  const reset = (patch: Partial<PhotoState> = {}) => {
     if (latest.current.image) URL.revokeObjectURL(latest.current.image)
-    set({ ...initialPhotoState(), phase: 'loading' })
+    set({ ...initialPhotoState(), hint: latest.current.hint, ...patch })
+  }
+
+  async function analyze(source: Blob, hint: Hint | null) {
+    reset({ phase: 'loading', hint })
     try {
       const blob = await prepareImage(source)
       const image = URL.createObjectURL(blob)
       const bmp = await createImageBitmap(blob)
       set({ image, width: bmp.width, height: bmp.height })
       bmp.close()
-      const res = await findPortions(blob, hint)
-      const portions = await decodePortions(res)
+      const res = await findPortions(blob, hint ?? undefined)
+      const portions = keepPortions(await decodePortions(res))
       if (portions.length < 2) {
         set({ phase: 'capture', portions: [], error: 'Probá con otra foto, desde arriba.' })
         return
@@ -125,8 +147,13 @@ function Photo({ state, onChange, disabled }: ExerciseProps<PhotoState>) {
   }
 
   const trySample = async () => {
-    const res = await fetch(SAMPLE_PHOTO)
-    await analyze(await res.blob(), 'pizza')
+    try {
+      const res = await fetch(SAMPLE_PHOTO)
+      if (!res.ok) throw new HttpError(res.status)
+      await analyze(await res.blob(), 'pizza')
+    } catch {
+      set({ phase: 'capture', error: 'No pude abrir la foto de ejemplo.' })
+    }
   }
 
   const tap = (id: string) => {
@@ -144,13 +171,16 @@ function Photo({ state, onChange, disabled }: ExerciseProps<PhotoState>) {
         @keyframes photo-pop { from { opacity: 0; transform: scale(.85) } to { opacity: 1; transform: scale(1) } }
         .photo-portion { transform-box: fill-box; transform-origin: center; animation: photo-pop 420ms cubic-bezier(.34,1.56,.64,1) both }
         @media (prefers-reduced-motion: reduce) { .photo-portion { animation: none } }
+        .photo-focus { display: none; stroke: #000; stroke-width: 5px; vector-effect: non-scaling-stroke }
+        .photo-portion:focus-visible > path:first-child { stroke: #fff; stroke-width: 12px; vector-effect: non-scaling-stroke }
+        .photo-portion:focus-visible > .photo-focus { display: inline }
       `}</style>
 
       {state.image ? (
         <div className="relative mx-auto w-full max-w-xl overflow-hidden rounded-xl border-4 border-amber-700">
-          <img src={state.image} alt="Tu foto" className="block w-full" />
+          <img src={state.image} alt={n ? `Tu foto, con ${n} ${n === 1 ? 'porción marcada' : 'porciones marcadas'}` : 'Tu foto'} className="block w-full" />
           {state.phase === 'loading' && (
-            <div className="absolute inset-0 grid place-items-center bg-black/30 text-lg font-semibold text-white" aria-live="polite">
+            <div aria-hidden className="absolute inset-0 grid place-items-center bg-black/30 text-lg font-semibold text-white">
               Buscando porciones…
             </div>
           )}
@@ -178,7 +208,7 @@ function Photo({ state, onChange, disabled }: ExerciseProps<PhotoState>) {
                         tap(p.id)
                       }
                     }}
-                    className="photo-portion cursor-pointer outline-none focus-visible:[&>path]:stroke-black"
+                    className="photo-portion cursor-pointer outline-none"
                     style={{ animationDelay: `${i * 90}ms` }}
                   >
                     <path
@@ -189,6 +219,8 @@ function Photo({ state, onChange, disabled }: ExerciseProps<PhotoState>) {
                       stroke={picked ? '#fff' : COLORS[i % COLORS.length]}
                       strokeWidth={picked ? 6 : 3}
                     />
+                    {/* Focus ring: wide white under narrow black, visible on any photo. */}
+                    <path d={p.path} fill="none" className="photo-focus" aria-hidden />
                     {state.phase === 'eat' && picked && (
                       <text x={p.cx} y={p.cy} textAnchor="middle" dominantBaseline="central" fontSize={Math.max(28, state.width / 25)} aria-hidden>
                         😋
@@ -207,15 +239,34 @@ function Photo({ state, onChange, disabled }: ExerciseProps<PhotoState>) {
       )}
 
       {state.error && (
-        <p role="alert" className="rounded-lg bg-amber-100 p-3 text-center text-lg font-semibold text-amber-900">
+        <p aria-hidden className="rounded-lg bg-amber-100 p-3 text-center text-lg font-semibold text-amber-900">
           {state.error}
         </p>
       )}
 
       {state.phase === 'capture' && (
+        <div className="flex flex-wrap justify-center gap-3" role="radiogroup" aria-label="¿Qué vas a fotografiar?">
+          {HINTS.map((h) => (
+            <button
+              key={h.id}
+              type="button"
+              role="radio"
+              aria-checked={state.hint === h.id}
+              aria-label={h.label}
+              disabled={disabled}
+              onClick={() => set({ hint: state.hint === h.id ? null : h.id })}
+              className={`grid size-20 place-items-center rounded-2xl border-4 text-5xl transition focus-visible:ring-4 focus-visible:ring-black focus-visible:outline-none ${state.hint === h.id ? 'border-primary bg-primary/15 ring-2 ring-primary' : 'border-border bg-card'}`}
+            >
+              <span aria-hidden>{h.emoji}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {state.phase === 'capture' && (
         <div className="flex flex-wrap justify-center gap-3">
           <Button asChild size="lg" disabled={disabled}>
-            <label className="cursor-pointer">
+            <label className="cursor-pointer has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-black">
               📷 Sacar foto
               <input
                 type="file"
@@ -226,7 +277,7 @@ function Photo({ state, onChange, disabled }: ExerciseProps<PhotoState>) {
                 onChange={(e) => {
                   const f = e.target.files?.[0]
                   e.target.value = ''
-                  if (f) void analyze(f)
+                  if (f) void analyze(f, state.hint)
                 }}
               />
             </label>
@@ -250,11 +301,15 @@ function Photo({ state, onChange, disabled }: ExerciseProps<PhotoState>) {
             <Button
               variant="outline"
               disabled={disabled || state.selected.length === 0 || n - state.selected.length < 2}
-              onClick={() => set({ portions: state.portions.filter((p) => !state.selected.includes(p.id)), selected: [] })}
+              onClick={() => set({
+                portions: state.portions.filter((p) => !state.selected.includes(p.id)),
+                removed: [...state.removed, ...state.portions.filter((p) => state.selected.includes(p.id))],
+                selected: [],
+              })}
             >
               Quitar
             </Button>
-            <Button variant="ghost" disabled={disabled} onClick={() => set(initialPhotoState())}>
+            <Button variant="ghost" disabled={disabled} onClick={() => reset()}>
               Otra foto
             </Button>
           </div>
@@ -307,7 +362,10 @@ function Photo({ state, onChange, disabled }: ExerciseProps<PhotoState>) {
           </div>
         </fieldset>
       )}
-      <p className="sr-only" aria-live="polite">{describe(state)}</p>
+      {/* Always mounted so screen readers announce loading, errors and progress. */}
+      <p className="sr-only" role="status" aria-live="polite">
+        {state.phase === 'loading' ? 'Buscando porciones…' : state.error ?? describe(state)}
+      </p>
     </div>
   )
 }

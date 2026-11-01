@@ -11,7 +11,38 @@ export interface SamPortion {
 export interface SamPortions { width: number | null; height: number | null; prompt: string; portions: SamPortion[] }
 
 /** A portion ready to draw: pixel area and a simplified outline in image coordinates. */
-export interface PhotoPortion { id: string; area: number; path: string; cx: number; cy: number }
+export interface PhotoPortion {
+  id: string
+  area: number
+  path: string
+  cx: number
+  cy: number
+  confidence: number | null
+  box?: [number, number, number, number]
+}
+
+/** Below this SAM confidence a match is dropped. */
+export const MIN_CONFIDENCE = 0.5
+/** Every match at or above this makes the equal-parts evidence high confidence. */
+export const HIGH_CONFIDENCE = 0.9
+/** A match covering half of all matched pixels is the whole dish, not a portion. */
+export const MAX_SHARE = 0.5
+
+/**
+ * Drops low-confidence matches and "whole dish" matches: half or more of all matched pixels AND a
+ * box that contains another match's center. The second condition keeps a legitimately big piece
+ * (a chocolate bar next to a small chunk is a real, unequal portion).
+ */
+export function keepPortions(ps: PhotoPortion[]): PhotoPortion[] {
+  const confident = ps.filter((p) => p.confidence === null || p.confidence >= MIN_CONFIDENCE)
+  const total = confident.reduce((s, p) => s + p.area, 0)
+  const contains = (p: PhotoPortion, q: PhotoPortion) =>
+    !!p.box && q.cx >= p.box[0] && q.cx <= p.box[2] && q.cy >= p.box[1] && q.cy <= p.box[3]
+  return confident.filter((p) => !(p.area >= total * MAX_SHARE && confident.some((q) => q !== p && contains(p, q))))
+}
+
+export const allConfident = (ps: PhotoPortion[]) =>
+  ps.length > 0 && ps.every((p) => p.confidence !== null && p.confidence >= HIGH_CONFIDENCE)
 
 export type Hint = 'pizza' | 'chocolate' | 'cake'
 
@@ -128,6 +159,8 @@ export async function decodePortions(res: SamPortions): Promise<PhotoPortion[]> 
       path: outline(decodeMaskToSVGPath(p.mask), x1, y1),
       cx: area ? x1 + sx / area : (p.box[0] + p.box[2]) / 2,
       cy: area ? y1 + sy / area : (p.box[1] + p.box[3]) / 2,
+      confidence: p.confidence ?? null,
+      box: p.box,
     }
   }).filter((p) => p.area > 0)
 }
@@ -140,7 +173,11 @@ export function areaRatio(portions: Pick<PhotoPortion, 'area'>[]): number {
 
 export const looksEqual = (portions: Pick<PhotoPortion, 'area'>[]) => areaRatio(portions) >= EQUAL_RATIO
 
-/** Joins portions SAM split by mistake (e.g. one slice cut by a shadow). */
+/**
+ * Joins portions SAM split by mistake (e.g. one slice cut by a shadow). The joined area is the sum
+ * of the parts, not the raster union: SAM's masks for one image don't overlap (measured: 0 shared
+ * pixels among the 8 pizza masks), so the sum equals the union.
+ */
 export function merge(portions: PhotoPortion[], ids: string[]): PhotoPortion[] {
   const picked = portions.filter((p) => ids.includes(p.id))
   if (picked.length < 2) return portions
@@ -151,6 +188,7 @@ export function merge(portions: PhotoPortion[], ids: string[]): PhotoPortion[] {
     path: picked.map((p) => p.path).join(''),
     cx: picked.reduce((s, p) => s + p.cx * p.area, 0) / area,
     cy: picked.reduce((s, p) => s + p.cy * p.area, 0) / area,
+    confidence: picked.some((p) => p.confidence === null) ? null : Math.min(...picked.map((p) => p.confidence!)),
   }
   const first = portions.findIndex((p) => ids.includes(p.id))
   const rest = portions.filter((p) => !ids.includes(p.id))
@@ -178,17 +216,27 @@ export async function prepareImage(file: Blob): Promise<Blob> {
 }
 
 /** Sends the photo once; it is never stored by Arandu nor by Meta. */
-export async function findPortions(image: Blob, hint?: Hint): Promise<SamPortions> {
-  const body = new FormData()
-  body.append('image', image, 'photo.jpg')
-  body.append('learnerId', getStoredLearnerId() ?? '')
-  if (hint) body.append('hint', hint)
-  const token = getToken()
-  const res = await fetch(`${BASE}/api/vision/portions`, {
-    method: 'POST',
-    body,
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  })
-  if (!res.ok) throw new HttpError(res.status)
-  return (await res.json()) as SamPortions
+export async function findPortions(image: Blob, hint?: Hint, fetcher: typeof fetch = fetch): Promise<SamPortions> {
+  const send = async () => {
+    const body = new FormData()
+    body.append('image', image, 'photo.jpg')
+    body.append('learnerId', getStoredLearnerId() ?? '')
+    if (hint) body.append('hint', hint)
+    const token = getToken()
+    const res = await fetcher(`${BASE}/api/vision/portions`, {
+      method: 'POST',
+      body,
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+    if (!res.ok) throw new HttpError(res.status)
+    return (await res.json()) as SamPortions
+  }
+  try {
+    return await send()
+  } catch (e) {
+    // One retry for transient failures (SAM 5xx/timeout surfaces as 502; network errors as TypeError).
+    const transient = e instanceof HttpError ? e.status >= 500 : e instanceof TypeError
+    if (!transient) throw e
+    return send()
+  }
 }
