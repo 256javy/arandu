@@ -1,3 +1,4 @@
+import { appendFileSync } from 'node:fs'
 import { expect, type Locator, type Page, type TestInfo } from '@playwright/test'
 
 export const isTouch = (info: TestInfo) => info.project.name === 'mobile'
@@ -41,9 +42,18 @@ export const center = async (el: Locator) => {
 /** Musi's bubble that is on screen (there is one in the dock on phones and one beside the visual on desktop). */
 export const bubble = (page: Page) => page.locator('p.bubble-in').filter({ visible: true })
 
-/** Waits until Musi answered the last turn with `text`, and the dock is ready again. */
-export async function waitReply(page: Page, text: string | RegExp) {
-  await expect(bubble(page)).toContainText(text, { timeout: 20_000 })
+/** A real tutor (an LLM) takes seconds per turn; the fake API answers at once. */
+export const TURN_TIMEOUT = process.env.E2E_API_URL ? 60_000 : 20_000
+
+/**
+ * Runs `action` (Comprobar, Enviar…) and waits for that tutor turn to come back and for Musi to stop
+ * thinking. Does not depend on the reply's text, so it works with the real, non-deterministic tutor.
+ */
+export async function waitReply(page: Page, action: () => Promise<unknown>) {
+  const turn = page.waitForResponse((r) => r.url().endsWith('/api/tutor/turn') && r.request().method() === 'POST', { timeout: TURN_TIMEOUT })
+  await action()
+  expect((await turn).ok()).toBe(true)
+  await expect(page.locator('p.sr-only[aria-live="polite"]').filter({ hasText: 'Musi está pensando' })).toHaveCount(0)
 }
 
 export async function tap(el: Locator, touch: boolean) {
@@ -54,6 +64,8 @@ export async function tap(el: Locator, touch: boolean) {
 /** Signs up a new adult account, creates the profile and enters as the kid. */
 export async function register(page: Page, nickname = 'Tati') {
   const email = `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@example.com`
+  // keep track of accounts created on a real stack, so they can be cleaned up
+  if (process.env.E2E_ACCOUNTS_FILE) appendFileSync(process.env.E2E_ACCOUNTS_FILE, `${email}\n`)
   await page.goto('/entrar')
   await page.getByLabel('Email').fill(email)
   await page.getByLabel('Contraseña').fill('e2e-password-123')
