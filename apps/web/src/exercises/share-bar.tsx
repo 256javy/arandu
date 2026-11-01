@@ -118,6 +118,15 @@ function ShareBar({ state, onChange, disabled, feedback, highlight }: ExercisePr
   const [culprit, setCulprit] = useState<number | null>(null)
   const [ok, setOk] = useState(false)
   const [badSlot, setBadSlot] = useState<Slot | null>(null)
+  // Any state change (including the dock's ↺ reset) clears the last check's marks.
+  const [seen, setSeen] = useState(state)
+  if (seen !== state) {
+    setSeen(state)
+    setCulprit(null)
+    setOk(false)
+    setBadSlot(null)
+    if (!state.cuts.length) setActive(null)
+  }
 
   const equal = isEqualSplit(state)
   const parts = partsOf(state)
@@ -251,7 +260,7 @@ function ShareBar({ state, onChange, disabled, feedback, highlight }: ExercisePr
         }}
         onPointerEnter={slot === 'den' ? () => pieceRefs.current.forEach((p, k) => p?.animate([{ opacity: 0 }, { opacity: 1 }, { opacity: 0 }], { duration: 350, delay: k * 150 })) : undefined}
         onFocus={slot === 'den' ? () => pieceRefs.current.forEach((p, k) => p?.animate([{ opacity: 0 }, { opacity: 1 }, { opacity: 0 }], { duration: 350, delay: k * 150 })) : undefined}
-        className={`flex h-20 w-36 items-center justify-center gap-2 rounded-2xl border-4 outline-2 outline-transparent transition-colors sm:h-24 sm:w-44 ${
+        className={`flex h-20 w-36 items-center justify-center gap-2 rounded-2xl border-4 outline-2 outline-transparent transition-colors sm:h-20 sm:w-40 ${
           bad ? 'border-red-700 bg-red-50' : active === slot ? 'border-sky-600 bg-sky-50' : value ? 'border-amber-700 bg-amber-50' : 'border-dashed border-stone-500 bg-white'
         } ${ring(highlight === `slot-${slot}`)}`}
       >
@@ -271,7 +280,7 @@ function ShareBar({ state, onChange, disabled, feedback, highlight }: ExercisePr
   return (
     <div className="flex flex-col items-center gap-4">
       {/* Friends above their quarter of the pizza; Leo gets the first one. */}
-      <div aria-hidden className="grid w-full max-w-2xl grid-cols-4">
+      <div aria-hidden className="grid w-full max-w-lg grid-cols-4">
         {FRIENDS.map((name, i) => (
           <div key={name} ref={i === 0 ? leoRef : undefined} className="flex flex-col items-center">
             <Face i={i} happy={ok || (equal && i === 0)} className={`size-11 sm:size-14 ${equal && i === 0 ? 'drop-shadow-[0_0_6px_#0ea5e9]' : ''}`} />
@@ -280,7 +289,7 @@ function ShareBar({ state, onChange, disabled, feedback, highlight }: ExercisePr
         ))}
       </div>
 
-      <div ref={wrapRef} className={`relative w-full max-w-2xl rounded-[28px] outline-4 outline-transparent ${ring(highlight === 'pizza')}`}>
+      <div ref={wrapRef} className={`relative w-full max-w-lg rounded-[28px] outline-4 outline-transparent ${ring(highlight === 'pizza')}`}>
         <div
           ref={barRef}
           role="group"

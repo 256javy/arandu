@@ -102,6 +102,13 @@ function NumberLine({ state, onChange, disabled, feedback, highlight }: Exercise
   const [drag, setDrag] = useState<Drag | null>(null)
   const [bad, setBad] = useState<Who[]>([])
   const [ok, setOk] = useState(false)
+  // Any state change (including the dock's ↺ reset) clears the last check's marks.
+  const [seen, setSeen] = useState(state)
+  if (seen !== state) {
+    setSeen(state)
+    setBad([])
+    setOk(false)
+  }
 
   const emit = (s: NumberLineState) => {
     setBad([])
@@ -169,6 +176,8 @@ function NumberLine({ state, onChange, disabled, feedback, highlight }: Exercise
   const handlers = (w: Who) => ({
     onPointerDown: (e: React.PointerEvent<HTMLButtonElement>) => {
       if (disabled) return
+      // a touch drag doesn't fire a click, so a stale flag would eat the next tap
+      suppressClick.current = false
       e.currentTarget.setPointerCapture(e.pointerId)
       setDrag({ w, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, active: false })
     },
