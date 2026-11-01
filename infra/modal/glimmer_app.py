@@ -13,6 +13,7 @@ scaledown_window=5 min one eval run of 30-60 min costs ~US$3-5. Idle = US$0.
 
 from __future__ import annotations
 
+import os
 import subprocess
 
 import modal
@@ -49,7 +50,9 @@ def download_weights() -> None:
 
 @app.server(
     image=vllm_image,
-    gpu=["H100", "A100-80GB"],  # bf16 needs ~72 GB of VRAM; first available wins
+    # bf16 needs ~72 GB of VRAM; first available wins. GLIMMER_GPU overrides at deploy time (e.g. "A100-80GB":
+    # Modal refuses H100 functions until the workspace has a payment method, even with credits).
+    gpu=os.environ.get("GLIMMER_GPU", "H100,A100-80GB").split(","),
     secrets=[modal.Secret.from_name("arandu-glimmer")],  # GLIMMER_API_KEY
     volumes={HF_CACHE: hf_cache, "/root/.cache/vllm": vllm_cache},
     port=PORT,
