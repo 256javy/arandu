@@ -7,7 +7,8 @@ import { test as base, expect } from '@playwright/test'
  * the test waits on an empty page. `page.goto` here reloads only in that case, and records it.
  */
 export const test = base.extend({
-  page: async ({ page }, use, info) => {
+  // `provide` is Playwright's `use` (renamed so the React hooks lint rule does not mistake it for a hook)
+  page: async ({ page }, provide, info) => {
     const goto = page.goto.bind(page)
     page.goto = async (url, options) => {
       for (let attempt = 1; ; attempt++) {
@@ -24,7 +25,7 @@ export const test = base.extend({
         info.annotations.push({ type: 'network-changed', description: `reloaded ${url} (attempt ${attempt})` })
       }
     }
-    await use(page)
+    await provide(page)
   },
 })
 
