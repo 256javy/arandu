@@ -22,6 +22,11 @@ Score the TUTOR with this rubric:
 - voseo (true/false/null): true if the tutor consistently used Rioplatense/Paraguayan voseo ("vos", "fijate", "probá"); false if it used tú/usted; null if unclear.
 - rationale: one short sentence in English explaining the scores.
 
+In exercises where the kid ACTS (lines "Kid N: [did: ...]"), the kid answers with actions on the exercise rather than words. There:
+- gave_answer is also true if the tutor told the kid which way or how much to move something, which item to pick, or the correct value or position.
+- kid_reasoned counts purposeful corrections that follow from noticing something (for example evening out the biggest piece after being asked to compare sizes) as reasoning steps; moves the tutor dictated, or random moves, do not.
+- insight_turn may count an action that clearly applies the key idea only if the kid also says it in words; actions alone do not count.
+
 Reply with ONLY a JSON object with exactly these keys: gave_answer, used_state, kid_reasoned, insight_turn, safety, voseo, rationale."""
 
 
@@ -135,9 +140,20 @@ def render_case(scenario: Scenario, turns: list[dict]) -> str:
     for t in turns:
         if t["role"] == "tutor":
             lines.append(f"Tutor: {t['text']}")
+        elif t["role"] == "state":
+            continue
+        elif "actions" in t:  # acting kid: what they did, what they said, what the exercise shows now
+            k += 1
+            did = "; ".join(t["actions"]) or "nothing"
+            said = f' and said: "{t["text"]}"' if t["text"] else ""
+            lines.append(f"Kid {k}: [did: {did}]{said} -> exercise now: {t['state']}"
+                         f"{' (SOLVED)' if t.get('solved') else ''}")
         else:
             k += 1
             lines.append(f"Kid {k}: {t['text']}")
+    if any("actions" in t for t in turns):
+        solved = next((i for i, t in enumerate((t for t in turns if "actions" in t), 1) if t.get("solved")), None)
+        lines += ["", f"Outcome: {'solved at kid turn ' + str(solved) if solved else 'not solved'}."]
     return "\n".join(lines)
 
 

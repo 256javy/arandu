@@ -71,7 +71,7 @@ async def run_one(spec: dict, roles: dict[str, dict], tutor_effort: str = "minim
 @app.local_entrypoint()
 def main(repeats: int = 1, kid_turns: int = 4, kid_provider: str = "auto", tutor_provider: str = "meta",
          judge_provider: str = "meta", scenarios: str = "", personas: str = "", tutors: str = "",
-         tutor_effort: str = "minimal"):
+         tutor_effort: str = "minimal", chat_only: bool = False):
     from arandu_evals.llm import RoleConfig, check_glimmer_config
     from arandu_evals.runner import build_specs, new_run_dir, write_results
 
@@ -84,7 +84,7 @@ def main(repeats: int = 1, kid_turns: int = 4, kid_provider: str = "auto", tutor
     for n in resolved["notes"]:
         print(f"note: {n}")
     specs = build_specs(repeats=repeats, kid_turns=kid_turns, scenarios=csv(scenarios),
-                        personas=csv(personas), tutors=csv(tutors))
+                        personas=csv(personas), tutors=csv(tutors), act=not chat_only)
     print(f"{len(specs)} conversations on Modal")
     records = list(run_one.starmap([(s, resolved["roles"], tutor_effort) for s in specs]))
 

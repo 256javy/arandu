@@ -23,13 +23,15 @@ RESULTS_DIR = Path(__file__).resolve().parents[2] / "results"
 
 
 def build_specs(*, repeats: int, kid_turns: int, scenarios: list[str] | None = None,
-                personas: list[str] | None = None, tutors: list[str] | None = None) -> list[dict]:
+                personas: list[str] | None = None, tutors: list[str] | None = None, act: bool = True) -> list[dict]:
+    """`act`: in manipulable scenarios the simulated kid acts on the exercise (actions.py) instead of chatting."""
     specs = []
     for r in range(repeats):
         for s in scenarios or [x.id for x in S.SCENARIOS]:
             for p in personas or [x.id for x in P.PERSONAS]:
                 for t in tutors or list(TUTORS):
-                    specs.append({"scenario": s, "persona": p, "tutor": t, "repeat": r, "kid_turns": kid_turns})
+                    specs.append({"scenario": s, "persona": p, "tutor": t, "repeat": r, "kid_turns": kid_turns,
+                                  "act": act})
     return specs
 
 
@@ -41,8 +43,10 @@ async def run_spec(spec: dict, clients: dict[str, LLM], system_prompt: str | Non
     try:
         conv = await run_conversation(scenario, persona, spec["tutor"], kid_llm=clients["kid"],
                                       tutor_llm=clients["tutor"], kid_turns=spec["kid_turns"],
-                                      system_prompt=system_prompt)
+                                      system_prompt=system_prompt, act=spec.get("act", True))
         record["turns"], record["usage"] = conv.turns, conv.usage
+        if conv.acting:  # deterministic outcome from the exercise check, not from the judge
+            record["solved_turn"] = conv.solved_turn
         try:
             score, usage = await judge(clients["judge"], scenario, conv.turns)
             record["score"] = score.as_dict()
@@ -97,10 +101,13 @@ def write_results(records: list[dict], out_dir: Path, *, run_id: str, roles: dic
     with (out_dir / "conversations.jsonl").open("w", encoding="utf-8") as f:
         for r in records:
             f.write(json.dumps({**{k: r[k] for k in keys}, "turns": r["turns"], "error": r["error"],
-                                "usage": r["usage"], "seconds": r.get("seconds")}, ensure_ascii=False) + "\n")
+                                "usage": r["usage"], "seconds": r.get("seconds"),
+                                **({"solved_turn": r["solved_turn"]} if "solved_turn" in r else {})},
+                               ensure_ascii=False) + "\n")
     with (out_dir / "scores.jsonl").open("w", encoding="utf-8") as f:
         for r in records:
-            f.write(json.dumps({**{k: r[k] for k in keys}, "score": r["score"], "error": r["error"]},
+            f.write(json.dumps({**{k: r[k] for k in keys}, "score": r["score"], "error": r["error"],
+                                **({"solved_turn": r["solved_turn"]} if "solved_turn" in r else {})},
                                ensure_ascii=False) + "\n")
 
     meta = {
