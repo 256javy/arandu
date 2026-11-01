@@ -23,6 +23,26 @@ const nodeOf = (exerciseId: string) => PATH.findIndex((p) => p.ids.includes(exer
 const REACT_MS = 700
 const TALK_MS = 900
 
+/** Path progress and stars survive a reload within the browser session. */
+interface Progress { done: number[]; stars: number }
+const PROGRESS_KEY = 'arandu.progress'
+function loadProgress(): Progress {
+  try {
+    const p = JSON.parse(sessionStorage.getItem(PROGRESS_KEY) ?? 'null') as Progress | null
+    if (p && Array.isArray(p.done) && typeof p.stars === 'number') return p
+  } catch {
+    /* storage unavailable or corrupt */
+  }
+  return { done: [], stars: 0 }
+}
+function saveProgress(p: Progress) {
+  try {
+    sessionStorage.setItem(PROGRESS_KEY, JSON.stringify(p))
+  } catch {
+    /* storage unavailable */
+  }
+}
+
 export function Learn() {
   const learnerId = getStoredLearnerId()
   const token = getToken()
@@ -30,12 +50,16 @@ export function Learn() {
   const plan = useQuery({ queryKey: ['next', learnerId], queryFn: () => getNext(learnerId!), enabled: !!learnerId && !!token, gcTime: 0, refetchOnWindowFocus: false })
   // each "Continuar" mounts a fresh mission, even when the planner repeats an exercise
   const [current, setCurrent] = useState<{ plan: Plan; n: number } | null>(null)
-  const [done, setDone] = useState<Set<number>>(() => new Set())
-  const [stars, setStars] = useState(0)
+  const [progress, setProgress] = useState(loadProgress)
+  const done = new Set(progress.done)
   const complete = useCallback((exerciseId: string) => {
-    setStars((n) => n + 1)
-    setDone((d) => new Set(d).add(nodeOf(exerciseId)))
+    setProgress((p) => {
+      const next = { done: [...new Set([...p.done, nodeOf(exerciseId)])], stars: p.stars + 1 }
+      saveProgress(next)
+      return next
+    })
   }, [])
+  const stars = progress.stars
 
   if (!token) return <Navigate to="/entrar" />
   if (!learnerId) return <Navigate to="/" />
@@ -230,7 +254,7 @@ function Mission({ learnerId, plan, done, stars, onComplete, onNext }: {
       <MissionPath currentNode={nodeOf(exercise.id)} done={done} stars={stars} />
 
       <div className="grid flex-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_240px]">
-        <section aria-labelledby="mission-prompt" className="flex flex-col gap-4">
+        <section aria-labelledby="mission-prompt" className="flex flex-col gap-4 lg:gap-8 lg:self-center">
           <h1 id="mission-prompt" className="text-2xl font-bold sm:text-3xl">{copy.prompt}</h1>
           <p id="mission-intro" className="sr-only">{exercise.intro}</p>
           <div aria-describedby="mission-intro">
