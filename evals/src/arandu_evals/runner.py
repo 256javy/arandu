@@ -80,7 +80,7 @@ def total_usage(records: list[dict]) -> dict[str, dict]:
     out: dict[str, dict] = {}
     for r in records:
         for role, u in (r.get("usage") or {}).items():
-            acc = out.setdefault(role, {"calls": 0, "prompt_tokens": 0, "completion_tokens": 0})
+            acc = out.setdefault(role, {"calls": 0, "prompt_tokens": 0, "completion_tokens": 0, "empty": 0})
             for k in acc:
                 acc[k] += u.get(k, 0)
     return out
@@ -121,6 +121,8 @@ def write_results(records: list[dict], out_dir: Path, *, run_id: str, roles: dic
         "tutors": len({r["tutor"] for r in records}),
         "conversations": len(records),
         "errors": sum(1 for r in records if r["error"]),
+        # Empty model responses: recovered by a retry (per role, in usage) vs. conversations lost to them.
+        "empty_failures": sum(1 for r in records if (r["error"] or "").startswith("EmptyResponseError")),
         "usage": total_usage(records),
         "notes": notes,
     }

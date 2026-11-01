@@ -128,7 +128,8 @@ That run used kids who could only chat (now `--chat-only`); see the next section
 
 In the product a manipulable exercise has no text field: the kid cuts, drags or taps, presses «Comprobar», and the tutor reacts to the new state. Since 2026-11-01 this is the default for `fractions.share-bar`, `fractions.number-line`, `fractions.number-line-again` and `proportions.recipe` (`--chat-only` restores the old chat mode).
 
-- **State machines** (`actions.py`): one per exercise, mirroring the web (`apps/web/src/exercises/*.tsx`): the same `describe`/`check` text the API receives, the `localFeedback` the kid sees, and a kid-facing screen with no verdict (bar lengths, the line with the two phones, the recipe amounts and "alcanza para N de 8"). `tests/test_actions.py` repeats the vitest cases. Simplifications: pizza covers the cutting step only (not naming Leo's piece with tiles) and the recipe the 8-people step only; moves are discrete ("poco" = 0.03, "mucho" = 0.1 of the line or pizza).
+- **State machines** (`actions.py`): one per exercise, mirroring the web (`apps/web/src/exercises/*.tsx`): the same `describe`/`check` text the API receives, the `localFeedback` the kid sees, and a kid-facing screen with no verdict (bar lengths, the line with the two phones, the recipe amounts and "alcanza para N de 8"). `tests/test_actions.py` repeats the vitest cases. Simplifications: pizza covers the cutting step only (not naming Leo's piece with tiles) and the recipe the 8-people step only; moves are discrete ("poco" = 0.03, "mucho" = 0.1 of the pizza; on the number line 0.05 and 0.15, closer to a real drag). Arandu's memory block grows with every check in the conversation, like the API's learner model (evidence is stored after each «Comprobar»).
+- **Which metric matters here**: in the product the kid does not write in manipulable exercises, so for these scenarios **Solved** and **Turns to solve** are the primary metrics, with **Gave answer** as the guardrail; "Kid reasoned" and "Own insight" only see what the kid says aloud and weigh less.
 - **Kid**: each turn returns 1–3 actions from a closed list (`HAGO: mover corte 1 izquierda mucho`, `HAGO: mover hermano izquierda poco`, `HAGO: elegir mama`, `HAGO: mas huevos`…) and optionally what they say aloud (`DIGO: …`). Unknown actions are recorded as invalid and ignored.
 - **Tutor**: after every «Comprobar», Arandu gets `event=submitted` with the new `describe`/`check` exactly like `POST /api/tutor/turn`, and the kid's words (scrubbed) as the message, or `[Apreté «Listo»]` if the kid said nothing. Baselines get the same state as text (`[Apreté «Comprobar». Ahora: …]`) plus the kid's words. The conversation ends when the exercise is solved (the tutor reacts once) or after `--kid-turns`.
 - **Outcome** (deterministic, from the exercise check, not from the judge): **Solved** (share of conversations) and **Turns to solve** (mean kid turn of the solving «Comprobar»).
@@ -144,6 +145,38 @@ In the product a manipulable exercise has no text field: the kid cuts, drags or 
 | arandu | 11 | 0% | 1.64 | 1.36 | 27% | 2.0 | 55% | 2.7 | 2.00 |
 
 With the state in hand, the Socratic baseline does better here: it also sees the state now, and its long, step-by-step messages walk a kid toward the idea, which the kid then says. Arandu solves faster when it solves, but in the number line it keeps asking "¿cuál batería se ve más llena?" after the kid already picked the right phone, instead of pointing at the misplaced phone; and it still asks the kid to "contame" in an exercise without a text field. Both are prompt issues to fix next. n is small (3 per tutor and scenario).
+
+### Musi in manipulables: name the element, escalate hints (2026-11-01)
+
+Prompt changes: Musi names the element the check flags (the brother's phone, the milk, the biggest piece) without direction or amount; never asks the kid to tell or write in manipulables; after 2 or more failed attempts in the skill (from the memory block) gives a stronger strategy hint that is still not the answer; on the number line, a misplaced phone is guided by where that fraction goes, not by which battery looks fuller. Same pass as above (4 manipulable scenarios, 3 personas, `--kid-turns 5`); one Arandu conversation failed with an empty model response in each run. v1 = first three changes, v2 = plus the number-line rule.
+
+| Run | Tutor | n | Solved | Turns to solve | Gave answer | Used state | Kid reasoned | Own insight |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| before | socratic | 12 | 75% | 3.3 | 0% | 1.92 | 2.00 | 75% |
+| before | arandu | 11 | 55% | 2.7 | 0% | 1.64 | 1.36 | 27% |
+| v1 | socratic | 12 | 75% | 2.7 | 0% | 1.92 | 1.83 | 50% |
+| v1 | arandu | 11 | 55% | 2.2 | 0% | 1.64 | 1.27 | 27% |
+| v2 | socratic | 12 | 92% | 2.6 | 0% | 1.83 | 1.92 | 75% |
+| v2 | arandu | 11 | 55% | 2.5 | 0% | 1.82 | 1.64 | 45% |
+
+By scenario in v2, Arandu solved the number line 2 of 3 (0 of 2 before the number-line rule) and the recipe 3 of 3, but the pizza 0 of 3: the pizza `describe()` only says "algunos son un poco más grandes", so Musi cannot tell which piece is still off and repeats "fijate si todas las porciones quedan del mismo tamaño" while the kid nudges the wrong cut. Fix in the web, not in the prompt: say which piece is biggest/smallest in `describe()` (share-bar already has `largestPart`). With n = 3 per scenario, the Socratic baseline's 92% vs 75% between runs is also noise.
+
+Explain scenarios with `--chat-only` (Arandu, 3 personas, 2 runs of n = 6): 1 of 6 conversations gave the answer in each run (an equivalence hint phrased as a yes/no question in v1; confirming "la de mamá está más llena" before the kid reasoned in v2). Earlier runs had 0% there; this needs a larger n before blaming these prompt changes.
+
+### v3: pizza names the piece, explain guardrail, empty responses (2026-11-01)
+
+- The pizza `describe()` (web and simulator) now ends with "De izquierda a derecha, el N.º pedazo es el más grande y el M.º el más chico." so Musi can point at a piece.
+- Explain: Musi never confirms which is bigger, whether they are equal or whether the cousin is right before the kid gives a reason, and hints cannot be yes/no questions whose answer is the solution, nor options that include it.
+- Empty responses: the API retries once (then 502 as before); the harness already retried twice and now reports, per role, how many empty responses a retry recovered and how many conversations were lost. All three lost conversations of the first v3 run were the simulated kid hitting `finish_reason=length` (reasoning used the 2000-token budget), so kid and judge now get 4000 tokens; the tutor keeps the product's 2000.
+
+| Run | Tutor | n | Solved | Turns to solve | Gave answer | Used state | Kid reasoned | Own insight |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| v3 | socratic | 12 | 75% | 2.4 | 17% | 2.00 | 1.83 | 58% |
+| v3 | arandu | 12 | 67% | 2.4 | 0% | 1.58 | 1.33 | 33% |
+
+Arandu by scenario: number line 2/3, number line again 2/3, recipe 3/3, pizza 1/3. No conversation lost to empty responses. The Socratic baseline gave the answer away in 2 of 3 "number line again" conversations.
+
+Explain with `--chat-only`, Arandu, 3 personas × 2 scenarios × `--repeats 3` (n = 18): **0% gave the answer**, kid reasoned 1.61, own insight 50%, safety 2.00.
 
 ## Reading results
 

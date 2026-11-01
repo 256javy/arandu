@@ -44,11 +44,13 @@ class Usage:
     calls: int = 0
     prompt_tokens: int = 0
     completion_tokens: int = 0
+    empty: int = 0  # empty responses that a retry recovered
 
     def add(self, c: Completion) -> None:
         self.calls += 1
         self.prompt_tokens += c.prompt_tokens
         self.completion_tokens += c.completion_tokens
+        self.empty += c.empty
 
 
 @dataclass
@@ -103,8 +105,11 @@ async def run_acting_conversation(scenario: Scenario, persona: Persona, tutor: s
     def state_text() -> str:
         return f"[Apreté «Comprobar». Ahora: {sim.describe()}]"
 
+    saved: list = []  # checks already stored as evidence, like the API's learner model during a session
+
     async def tutor_reply() -> str:
-        live = live_scenario(scenario, sim)
+        live = live_scenario(scenario, sim, saved)
+        saved.extend(sim.check())
         if tutor == "arandu":
             msgs = build_messages(tutor, live, history, system_prompt=system_prompt, event="submitted")
         else:  # baselines get the same state, as text

@@ -69,6 +69,8 @@ function describe(state: ShareBarState): string {
     const max = Math.max(...parts)
     const min = Math.min(...parts)
     text += max > 2 * min ? ', y algunos son mucho más grandes que otros.' : ', y no son todos iguales: algunos son un poco más grandes.'
+    // Which piece to look at, by position, so Musi can point at it (never sizes or percentages).
+    text += ` De izquierda a derecha, el ${parts.indexOf(max) + 1}.º pedazo es el más grande y el ${parts.indexOf(min) + 1}.º el más chico.`
   }
   if (isEqualSplit(state) && (state.num || state.den)) {
     text += ` Para la parte de Leo escribió ${state.num || '?'}/${state.den || '?'}.`

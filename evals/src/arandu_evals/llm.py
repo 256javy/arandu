@@ -89,6 +89,7 @@ class Completion:
     text: str
     prompt_tokens: int = 0
     completion_tokens: int = 0
+    empty: int = 0  # empty responses retried before this one came back with content
 
 
 class LLM(Protocol):
@@ -123,6 +124,7 @@ class OpenAICompatLLM:
 
     async def complete(self, messages: list[dict], *, temperature: float) -> Completion:
         prompt = completion = 0
+        reasons: list[str] = []
         for attempt in range(self._empty_retries + 1):
             res = await self._client.chat.completions.create(
                 model=self.model,
@@ -136,9 +138,12 @@ class OpenAICompatLLM:
                 completion += res.usage.completion_tokens or 0
             content = res.choices[0].message.content if res.choices else None
             if content and content.strip():
-                return Completion(content.strip(), prompt, completion)
-            await asyncio.sleep(1 + attempt)
-        raise EmptyResponseError(f"{self.provider}/{self.model} returned empty content")
+                return Completion(content.strip(), prompt, completion, empty=attempt)
+            reasons.append(str(res.choices[0].finish_reason) if res.choices else "no choices")
+            if attempt < self._empty_retries:
+                await asyncio.sleep(1 + attempt)
+        raise EmptyResponseError(f"{self.provider}/{self.model} returned empty content "
+                                 f"{len(reasons)} times (finish_reason: {', '.join(reasons)})")
 
 
 async def probe(provider_name: str) -> str | None:
@@ -182,11 +187,16 @@ async def resolve_roles(requested: dict[str, str]) -> tuple[dict[str, RoleConfig
 def make_clients(roles: dict[str, RoleConfig], efforts: dict[str, str] | None = None) -> dict[str, LLM]:
     """`efforts` overrides reasoning_effort per role (default "low"), like the API's per-role settings."""
     efforts = efforts or {}
-    cache: dict[tuple[str, str], LLM] = {}
+    cache: dict[tuple[str, str, int], LLM] = {}
     out: dict[str, LLM] = {}
     for role, cfg in roles.items():
-        key = (cfg.provider, efforts.get(role, "low"))
+        key = (cfg.provider, efforts.get(role, "low"), ROLE_MAX_TOKENS.get(role, 2000))
         if key not in cache:
-            cache[key] = OpenAICompatLLM(PROVIDERS[cfg.provider], reasoning_effort=key[1])
+            cache[key] = OpenAICompatLLM(PROVIDERS[cfg.provider], reasoning_effort=key[1], max_tokens=key[2])
         out[role] = cache[key]
     return out
+
+
+# The acting kid reasons at length about the screen and ran out of tokens on reasoning (finish_reason=length,
+# empty content) at 2000; the tutor keeps the product's budget.
+ROLE_MAX_TOKENS = {"kid": 4000, "judge": 4000}

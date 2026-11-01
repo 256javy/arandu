@@ -111,7 +111,7 @@ def test_context_matches_controller_format():
         "Objetivo: Cortar la pizza en 4 partes iguales para repartirla entre 4 amigos y nombrar la parte "
         "de uno con una fracción.\n"
         "Estado actual (números internos, no los digas): La pizza tiene 4 pedazos, y algunos son mucho más "
-        "grandes que otros.\n"
+        "grandes que otros. De izquierda a derecha, el 1.º pedazo es el más grande y el 3.º el más chico.\n"
         "Evento: submitted\n"
         "Evidencia: fraction.equal-parts (mal, confianza high) Hay 4 partes pero no son iguales."
     )

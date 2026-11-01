@@ -21,6 +21,8 @@ public class OpenAiCompatibleTutorModel implements TutorModel {
         }
     }
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(OpenAiCompatibleTutorModel.class);
+
     private final RestClient client;
     private final String model;
     private final String reasoningEffort;
@@ -28,7 +30,12 @@ public class OpenAiCompatibleTutorModel implements TutorModel {
 
     public OpenAiCompatibleTutorModel(String baseUrl, String apiKey, String model, String reasoningEffort,
                                       int maxTokens) {
-        this.client = RestClient.builder()
+        this(RestClient.builder(), baseUrl, apiKey, model, reasoningEffort, maxTokens);
+    }
+
+    OpenAiCompatibleTutorModel(RestClient.Builder builder, String baseUrl, String apiKey, String model,
+                               String reasoningEffort, int maxTokens) {
+        this.client = builder
                 .baseUrl(baseUrl)
                 .defaultHeader("Authorization", "Bearer " + apiKey)
                 .build();
@@ -45,17 +52,29 @@ public class OpenAiCompatibleTutorModel implements TutorModel {
         return maxTokens;
     }
 
+    /** Muse Spark occasionally answers with empty content; one retry, then the caller's error path (502). */
     @Override
     public String complete(List<Message> messages) {
+        for (int attempt = 0; attempt < 2; attempt++) {
+            String content = call(messages);
+            if (content != null && !content.isBlank()) {
+                return content.trim();
+            }
+            log.warn("empty LLM response from {} (attempt {})", model, attempt + 1);
+        }
+        throw new IllegalStateException("empty LLM response");
+    }
+
+    private String call(List<Message> messages) {
         Response res = client.post()
                 .uri("/chat/completions")
                 .body(new Request(model, messages, 0.4, maxTokens, reasoningEffort))
                 .retrieve()
                 .body(Response.class);
         if (res == null || res.choices() == null || res.choices().isEmpty()
-                || res.choices().get(0).message().content() == null) {
-            throw new IllegalStateException("empty LLM response");
+                || res.choices().get(0).message() == null) {
+            return null;
         }
-        return res.choices().get(0).message().content().trim();
+        return res.choices().get(0).message().content();
     }
 }

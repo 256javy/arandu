@@ -121,8 +121,11 @@ class Pizza(Sim):
         if all(abs(p - 1 / len(parts)) <= PIZZA_TOLERANCE for p in parts):
             return text + ", todos iguales."
         if max(parts) > 2 * min(parts):
-            return text + ", y algunos son mucho más grandes que otros."
-        return text + ", y no son todos iguales: algunos son un poco más grandes."
+            text += ", y algunos son mucho más grandes que otros."
+        else:
+            text += ", y no son todos iguales: algunos son un poco más grandes."
+        return (text + f" De izquierda a derecha, el {parts.index(max(parts)) + 1}.º pedazo es el más grande"
+                f" y el {parts.index(min(parts)) + 1}.º el más chico.")
 
     def check(self) -> tuple[Evidence, ...]:  # share-bar.tsx check(), cut step
         parts = parts_of(self.cuts)
@@ -166,7 +169,7 @@ class NumberLine(Sim):
         "- mover <mama|hermano> <izquierda|derecha> <poco|mucho>   (izquierda = hacia el 0, batería más vacía)\n"
         "- elegir <mama|hermano>   (tocar el celular que dura más)"
     )
-    STEP = {"poco": 0.03, "mucho": 0.1}
+    STEP = {"poco": 0.05, "mucho": 0.15}  # a realistic drag on a phone screen
 
     def apply(self, action: str) -> str | None:
         a = _norm(action)
@@ -332,6 +335,35 @@ def parse_move(text: str, max_actions: int = 3) -> KidMove:
     return KidMove(actions, said)
 
 
-def live_scenario(scenario, sim: Sim):
-    """The scenario as the API would see it right after «Comprobar»: new state and evidence."""
-    return replace(scenario, state=sim.describe(), evidence=sim.check(), event="submitted")
+# Planner.label() in skill order (ExerciseCatalog.SKILLS): the order TutorController.memory() lists them in.
+SKILL_LABELS = {
+    "fraction.equal-parts": "partes iguales",
+    "fraction.notation": "notación a/b",
+    "fraction.compare": "comparar fracciones",
+    "fraction.equivalence": "fracciones equivalentes",
+    "proportion.scale": "agrandar una receta",
+    "proportion.unit-rate": "cuánto va para cada uno",
+}
+
+
+def with_attempts(memory, earlier: list[Evidence], exercise_id: str):
+    """The learner model the API would read before this turn: the scenario's earlier sessions plus every check
+    already saved in this conversation (TutorController stores evidence after reading `memory(before)`)."""
+    from .scenarios import Memory
+
+    acc = {m.label: [m.successes, m.attempts, m.last_exercise] for m in memory}
+    for e in earlier:
+        s = acc.setdefault(SKILL_LABELS.get(e.skill, e.skill), [0, 0, exercise_id])
+        s[0] += 1 if e.ok else 0
+        s[1] += 1
+        s[2] = exercise_id
+    order = list(SKILL_LABELS.values())
+    labels = sorted(acc, key=lambda label: order.index(label) if label in order else len(order))
+    return tuple(Memory(label, *acc[label]) for label in labels)
+
+
+def live_scenario(scenario, sim: Sim, earlier: list[Evidence] | None = None):
+    """The scenario as the API would see it right after «Comprobar»: new state and evidence, and the memory
+    including the checks of earlier turns."""
+    return replace(scenario, state=sim.describe(), evidence=sim.check(), event="submitted",
+                   memory=with_attempts(scenario.memory, earlier or [], scenario.exercise_id))
