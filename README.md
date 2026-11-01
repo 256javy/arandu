@@ -30,6 +30,10 @@ It is not a chatbot: the learning happens in the exercises, an agent keeps a per
 | Muse Spark 1.3 (Meta Model API) | `apps/api` | Musi's turns; judging free-text explanations against a rubric |
 | Muse Spark 1.3 | `evals` | Simulated kids, tutors under test and the judge (kids can optionally run on Muse Spark Open via Fireworks) |
 
+Mission illustrations generated once with Muse Image (Meta) via `tools/illustrations/generate.py`; not generated at runtime. Style prompt (prepended to each scene, with the Musi SVG render as reference image):
+
+> Flat vector children's book illustration for kids aged 9 to 12, warm and friendly mood, soft rounded shapes, thick dark-brown (#78350f) outlines on the main character, cream/pale-yellow (#fffbeb) background with a few simple soft pastel shapes, clean uncluttered composition, square format with the scene centered. Character 'Musi': a round, chubby mascot with a perfectly circular amber-orange (#f59e0b) body, dark-brown outline, two small round ears on top, two big white eyes with dark pupils, a small dark-red smile and no arms or legs unless needed for the pose. Keep Musi's design identical to the reference image. Strictly NO text, NO letters, NO numbers, NO digits anywhere in the image, no logos, no real people. Any friends are simple cute generic animal cubs or generic cartoon kids in the same flat style.
+
 ## Evaluation
 
 Simulated kids (four personas: the copier, the frustrated one, the advanced one, and the one who goes off topic) work through three exercise situations with three tutors. A blind LLM judge scores each conversation. All roles use `muse-spark-1.3`.
