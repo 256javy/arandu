@@ -51,6 +51,8 @@ The **learner model is organized by skill, not by exercise**, so the same skill 
 Musi and the judge are separate clients with their own `reasoning_effort` and `max_tokens` (`META_TUTOR_*`, `META_JUDGE_*`, both `minimal` by default). Warm local turn latency with the defaults (2026-11-01, n=5, median): share-bar 1.6 s, number line 1.3 s, explain with judge 2.7 s.
 6. The planner recomputes the next mission from the learner model; Musi's reply is shown and spoken.
 
+Judged explanations keep the kid's scrubbed words as the evidence `quote` (≤ 280 chars). The family page's "Esta semana" card (`GET /api/learners/{id}/spotlight`) asks Muse Spark (minimal effort, no nickname or account sent) for a 2–4 sentence summary of the last 7 days that quotes those words and suggests something to do at home. It is cached in the `spotlight` table until newer evidence arrives or it is a day old; with no evidence this week a fixed text is shown without calling the model. Quotes and summary are deleted with the profile.
+
 ## Learner model and planner
 
 Evidence is aggregated per skill as a confidence-weighted moving average (a deterministic check moves it more than an LLM judgment). Each skill is `new`, `practicing`, `stuck` (two misses in a row), `likely` (last answer right but only LLM-judged) or `mastered`.
