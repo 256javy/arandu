@@ -7,13 +7,30 @@ import { Button } from '@/components/ui/button'
 export function ChatDrawer({ open, messages, onClose }: { open: boolean; messages: HistoryItem[]; onClose(): void }) {
   const closeRef = useRef<HTMLButtonElement>(null)
   const endRef = useRef<HTMLLIElement>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!open) return
     const opener = document.activeElement as HTMLElement | null
     closeRef.current?.focus()
     endRef.current?.scrollIntoView?.({ block: 'nearest' })
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+      if (e.key !== 'Tab' || !dialogRef.current) return
+      // focus trap: Tab and Shift+Tab cycle inside the dialog (aria-modal)
+      const items = [...dialogRef.current.querySelectorAll<HTMLElement>('button, [href], input, textarea, select, [tabindex]:not([tabindex="-1"])')]
+      if (!items.length) return
+      const first = items[0]
+      const last = items[items.length - 1]
+      const inside = dialogRef.current.contains(document.activeElement)
+      if (e.shiftKey && (document.activeElement === first || !inside)) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && (document.activeElement === last || !inside)) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
     window.addEventListener('keydown', onKey)
     return () => {
       window.removeEventListener('keydown', onKey)
@@ -25,6 +42,7 @@ export function ChatDrawer({ open, messages, onClose }: { open: boolean; message
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 lg:items-stretch lg:justify-end" onClick={onClose}>
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="chat-title"

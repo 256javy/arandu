@@ -63,6 +63,12 @@ function describe(state: NumberLineState): string {
   return `Recta de 0 a 1 (batería vacía a llena). Ubicó ${placed}.${choice}`
 }
 
+/** What a screen reader hears while the kid works: positions and choice, no verdict (unlike `describe`, which goes to the LLM). */
+export function announce(state: NumberLineState): string {
+  const at = WHO.map((w) => `${PHONES[w].label}: ${state.moved[w] ? `en ${fmt(state.pos[w])}` : 'en la bandeja'}`).join('; ')
+  return `${at}.${state.choice ? ` Elegiste a ${PHONES[state.choice].label}.` : ''}`
+}
+
 function check(state: NumberLineState): Evidence[] {
   const errors = WHO.map((w) => ({ w, err: Math.abs(state.pos[w] - PHONES[w].value) }))
   const misplaced = errors.filter((e) => !state.moved[e.w] || e.err > TOLERANCE)
@@ -115,6 +121,13 @@ function NumberLine({ state, onChange, disabled, feedback, highlight }: Exercise
     setOk(false)
     onChange(s)
   }
+  // A phone moving between tray and line remounts under another parent: keep keyboard focus on it.
+  const refocus = useRef<Who | null>(null)
+  useLayoutEffect(() => {
+    const w = refocus.current
+    refocus.current = null
+    if (w && document.activeElement !== phoneRefs.current[w]) phoneRefs.current[w]?.focus()
+  }, [state.moved])
   const posFromX = (clientX: number) => {
     const r = lineRef.current!.getBoundingClientRect()
     return clamp((clientX - r.left) / r.width)
@@ -213,6 +226,7 @@ function NumberLine({ state, onChange, disabled, feedback, highlight }: Exercise
       if (state.moved[w]) emit(choosePhone(state, w))
     },
     onKeyDown: (e: React.KeyboardEvent<HTMLButtonElement>) => {
+      refocus.current = w
       const step = (e.shiftKey ? 5 : 1) * KEY_STEP
       const base = state.moved[w] ? state.pos[w] : 0.5
       if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
@@ -303,9 +317,11 @@ function NumberLine({ state, onChange, disabled, feedback, highlight }: Exercise
         </div>
       )}
 
-      <p id="number-line-help" className="sr-only" aria-live="polite">
-        {describe(state)} Con el teclado: enfocá un celular y usá las flechas para ubicarlo (con Mayúsculas, pasos grandes); Escape lo devuelve a la bandeja; Enter lo elige como el que dura más.
+      <p id="number-line-help" className="sr-only">
+        Con el teclado: enfocá un celular y usá las flechas para ubicarlo (con Mayúsculas, pasos grandes); Escape lo devuelve a la bandeja; Enter lo elige como el que dura más.
       </p>
+      {/* Neutral state only: where each phone is and which one is chosen, never whether it is right. */}
+      <p className="sr-only" aria-live="polite">{announce(state)}</p>
     </div>
   )
 }

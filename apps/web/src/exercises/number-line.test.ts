@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { choosePhone, culprits, dropPhone, numberLine, parkPhone, type NumberLineState } from './number-line'
+import { announce, choosePhone, culprits, dropPhone, numberLine, parkPhone, type NumberLineState } from './number-line'
 
 const s = (mom: number, brother: number, choice: NumberLineState['choice']): NumberLineState => ({
   pos: { mom, brother },
@@ -61,5 +61,10 @@ describe('number-line step', () => {
     expect(numberLine.step!(dropPhone(init, 'mom', 0.7))).toBe('place')
     expect(numberLine.step!(dropPhone(dropPhone(init, 'mom', 0.7), 'brother', 0.6))).toBe('choose')
     expect(numberLine.stepCopy?.choose.bubble).toBe('¿Cuál dura más? Tocalo.')
+  })
+  it('announces positions and the choice without a verdict', () => {
+    const placed = choosePhone(dropPhone(numberLine.initialState(), 'mom', 0.75), 'mom')
+    expect(announce(placed)).toBe('Mamá: en 0,75; Hermano: en la bandeja. Elegiste a Mamá.')
+    expect(announce(s(0.75, 0.67, 'mom'))).not.toMatch(/lugar|cerca|bien|mal/)
   })
 })
