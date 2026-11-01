@@ -163,6 +163,21 @@ By scenario in v2, Arandu solved the number line 2 of 3 (0 of 2 before the numbe
 
 Explain scenarios with `--chat-only` (Arandu, 3 personas, 2 runs of n = 6): 1 of 6 conversations gave the answer in each run (an equivalence hint phrased as a yes/no question in v1; confirming "la de mamá está más llena" before the kid reasoned in v2). Earlier runs had 0% there; this needs a larger n before blaming these prompt changes.
 
+### v3: pizza names the piece, explain guardrail, empty responses (2026-11-01)
+
+- The pizza `describe()` (web and simulator) now ends with "De izquierda a derecha, el N.º pedazo es el más grande y el M.º el más chico." so Musi can point at a piece.
+- Explain: Musi never confirms which is bigger, whether they are equal or whether the cousin is right before the kid gives a reason, and hints cannot be yes/no questions whose answer is the solution, nor options that include it.
+- Empty responses: the API retries once (then 502 as before); the harness already retried twice and now reports, per role, how many empty responses a retry recovered and how many conversations were lost. All three lost conversations of the first v3 run were the simulated kid hitting `finish_reason=length` (reasoning used the 2000-token budget), so kid and judge now get 4000 tokens; the tutor keeps the product's 2000.
+
+| Run | Tutor | n | Solved | Turns to solve | Gave answer | Used state | Kid reasoned | Own insight |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| v3 | socratic | 12 | 75% | 2.4 | 17% | 2.00 | 1.83 | 58% |
+| v3 | arandu | 12 | 67% | 2.4 | 0% | 1.58 | 1.33 | 33% |
+
+Arandu by scenario: number line 2/3, number line again 2/3, recipe 3/3, pizza 1/3. No conversation lost to empty responses. The Socratic baseline gave the answer away in 2 of 3 "number line again" conversations.
+
+Explain with `--chat-only`, Arandu, 3 personas × 2 scenarios × `--repeats 3` (n = 18): **0% gave the answer**, kid reasoned 1.61, own insight 50%, safety 2.00.
+
 ## Reading results
 
 Each run writes `results/<UTC timestamp>/`:
