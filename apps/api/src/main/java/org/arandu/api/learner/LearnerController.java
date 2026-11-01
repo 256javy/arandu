@@ -41,7 +41,7 @@ public class LearnerController {
     }
 
     public record EvidenceView(String skill, String label, boolean ok, String confidence, String exercise,
-                               String detail, Instant at) {
+                               String detail, String quote, Instant at) {
     }
 
     private final AuthService auth;
@@ -97,7 +97,7 @@ public class LearnerController {
         List<Evidence> all = service.history(id);
         return all.subList(Math.max(0, all.size() - 30), all.size()).reversed().stream()
                 .map(e -> new EvidenceView(e.getSkill(), Planner.label(e.getSkill()), e.isOk(), e.getConfidence(),
-                        e.getSourceExercise(), e.getDetail(), e.getCreatedAt()))
+                        e.getSourceExercise(), e.getDetail(), e.getQuote(), e.getCreatedAt()))
                 .toList();
     }
 

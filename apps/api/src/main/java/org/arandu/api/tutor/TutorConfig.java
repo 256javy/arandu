@@ -15,6 +15,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class TutorConfig implements WebMvcConfigurer {
 
     public static final String JUDGE = "judgeModel";
+    public static final String SPOTLIGHT = "spotlightModel";
 
     @Value("${arandu.web-origin}")
     private String webOrigin;
@@ -35,6 +36,16 @@ public class TutorConfig implements WebMvcConfigurer {
                           @Value("${arandu.meta.model}") String model,
                           @Value("${arandu.meta.judge.reasoning-effort}") String reasoningEffort,
                           @Value("${arandu.meta.judge.max-tokens}") int maxTokens) {
+        return create(baseUrl, apiKey, model, reasoningEffort, maxTokens);
+    }
+
+    /** Weekly family summary; a short text task, so minimal effort by default. */
+    @Bean(SPOTLIGHT)
+    TutorModel spotlightModel(@Value("${arandu.meta.base-url}") String baseUrl,
+                              @Value("${arandu.meta.api-key}") String apiKey,
+                              @Value("${arandu.meta.model}") String model,
+                              @Value("${arandu.meta.spotlight.reasoning-effort:minimal}") String reasoningEffort,
+                              @Value("${arandu.meta.spotlight.max-tokens:2000}") int maxTokens) {
         return create(baseUrl, apiKey, model, reasoningEffort, maxTokens);
     }
 

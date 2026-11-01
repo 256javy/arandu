@@ -31,6 +31,10 @@ public class Evidence {
 
     private String detail;
 
+    public static final int QUOTE_MAX = 280;
+
+    private String quote;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -38,6 +42,14 @@ public class Evidence {
     }
 
     public Evidence(UUID learnerId, String skill, boolean ok, String confidence, String sourceExercise, String detail) {
+        this(learnerId, skill, ok, confidence, sourceExercise, detail, null);
+    }
+
+    /** {@code quote} is the kid's scrubbed text for open-ended exercises; clipped to {@value #QUOTE_MAX} chars. */
+    public Evidence(UUID learnerId, String skill, boolean ok, String confidence, String sourceExercise, String detail,
+                    String quote) {
+        this.quote = quote == null || quote.isBlank() ? null
+                : quote.strip().length() > QUOTE_MAX ? quote.strip().substring(0, QUOTE_MAX - 1) + "…" : quote.strip();
         this.id = UUID.randomUUID();
         this.learnerId = learnerId;
         this.skill = skill;
@@ -66,6 +78,10 @@ public class Evidence {
 
     public String getDetail() {
         return detail;
+    }
+
+    public String getQuote() {
+        return quote;
     }
 
     public Instant getCreatedAt() {

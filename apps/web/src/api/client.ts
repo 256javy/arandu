@@ -25,8 +25,13 @@ export interface EvidenceEntry {
   confidence: Evidence['confidence']
   exercise: string
   detail: string | null
+  /** The kid's own (scrubbed) words, only for explanations judged by the model. */
+  quote: string | null
   at: string
 }
+
+/** "Esta semana": `generated` is false for the fixed text shown when there was no practice. */
+export interface Spotlight { text: string; generated: boolean; generatedAt: string }
 export interface Plan { exerciseId: string; skill: string; reason: string }
 export interface HistoryItem { role: 'tutor' | 'kid'; text: string }
 export interface TurnRequest {
@@ -122,7 +127,9 @@ export const getMastery = (id: string) => http<Mastery[]>(`/api/learners/${encod
 
 export const getEvidence = (id: string) => http<EvidenceEntry[]>(`/api/learners/${encodeURIComponent(id)}/evidence`)
 
-export const getNext = (id: string) => http<Plan>(`/api/learners/${encodeURIComponent(id)}/next`)
+export const getSpotlight = (id: string) => http<Spotlight>(`/api/learners/${encodeURIComponent(id)}/spotlight`)
+
+export const getNext =(id: string) => http<Plan>(`/api/learners/${encodeURIComponent(id)}/next`)
 
 export const tutorTurn = (req: TurnRequest) =>
   http<TurnResponse>('/api/tutor/turn', { method: 'POST', body: JSON.stringify(req) })

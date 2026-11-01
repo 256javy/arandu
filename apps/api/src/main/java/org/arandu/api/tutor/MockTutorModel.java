@@ -14,6 +14,9 @@ public class MockTutorModel implements TutorModel {
             boolean ok = answer.contains("porque") || answer.contains("mitad") || answer.contains("falta");
             return "{\"ok\": " + ok + ", \"reason\": \"(mock) busca una razón en la respuesta\"}";
         }
+        if (messages.getFirst().content().equals(org.arandu.api.family.SpotlightService.SYSTEM)) {
+            return "(mock) Esta semana tu hijo/a practicó fracciones. Probá repartir una pizza en casa.";
+        }
         return "Mirá bien lo que hiciste: ¿qué te dice cada parte?";
     }
 

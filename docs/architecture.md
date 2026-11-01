@@ -51,6 +51,8 @@ The **learner model is organized by skill, not by exercise**, so the same skill 
 Musi and the judge are separate clients with their own `reasoning_effort` and `max_tokens` (`META_TUTOR_*`, `META_JUDGE_*`, both `minimal` by default). Warm local turn latency with the defaults (2026-11-01, n=5, median): share-bar 1.6 s, number line 1.3 s, explain with judge 2.7 s.
 6. The planner recomputes the next mission from the learner model; Musi's reply is shown and spoken.
 
+Judged explanations keep the kid's scrubbed words as the evidence `quote` (≤ 280 chars). The family page's "Esta semana" card (`GET /api/learners/{id}/spotlight`) asks Muse Spark (minimal effort, no nickname or account sent) for a 2–4 sentence summary of the last 7 days that quotes those words and suggests something to do at home. It is cached in the `spotlight` table until newer evidence arrives or it is a day old; with no evidence this week a fixed text is shown without calling the model. Quotes and summary are deleted with the profile.
+
 ## Learner model and planner
 
 Evidence is aggregated per skill as a confidence-weighted moving average (a deterministic check moves it more than an LLM judgment). Each skill is `new`, `practicing`, `stuck` (two misses in a row), `likely` (last answer right but only LLM-judged) or `mastered`.
@@ -66,7 +68,7 @@ The planner walks the skills in teaching order (equal parts → notation → com
 
 ## Accounts and privacy
 
-An adult signs up with email and password (bcrypt); sessions are opaque bearer tokens stored only as SHA-256 hashes. Kid profiles are a nickname under the adult's account. The model receives the exercise state, the kid's scrubbed text and skill names, never the account or nickname. Deleting a profile deletes its evidence (database cascade).
+An adult signs up with email and password (bcrypt); sessions are opaque bearer tokens stored only as SHA-256 hashes. Kid profiles are a nickname under the adult's account. The model receives the exercise state, the kid's scrubbed text and skill names, never the account or nickname. The scrub is heuristic, not a guarantee: it hides emails (also spelled out with "arroba"/"punto"), phone-like numbers, runs of seven or more digits and "calle/avenida/ruta … number" addresses, but it will miss names, other address formats and anything phrased creatively. To limit the damage, a kid's text is only kept as a `quote` (shown to the adult and sent to the spotlight model) when the scrub changed nothing and it has fewer than seven digits; otherwise no quote is stored. Client-sent evidence `detail` is scrubbed, stripped of `<>` and line breaks, clipped to 200 chars and never sent to the spotlight. Deleting a profile deletes its evidence (database cascade).
 
 ## Roadmap
 
