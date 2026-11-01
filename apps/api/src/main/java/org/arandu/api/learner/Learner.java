@@ -7,6 +7,7 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
 
+/** A kid's pseudonymous profile (nickname only), owned by an adult account. */
 @Entity
 @Table(name = "learner")
 public class Learner {
@@ -17,14 +18,18 @@ public class Learner {
     @Column(nullable = false)
     private String nickname;
 
+    @Column(name = "account_id")
+    private UUID accountId;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
     protected Learner() {
     }
 
-    public Learner(String nickname) {
+    public Learner(UUID accountId, String nickname) {
         this.id = UUID.randomUUID();
+        this.accountId = accountId;
         this.nickname = nickname;
         this.createdAt = Instant.now();
     }
@@ -35,5 +40,9 @@ public class Learner {
 
     public String getNickname() {
         return nickname;
+    }
+
+    public UUID getAccountId() {
+        return accountId;
     }
 }

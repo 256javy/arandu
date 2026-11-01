@@ -15,18 +15,20 @@ public class TutorConfig implements WebMvcConfigurer {
     @Bean
     TutorModel tutorModel(@Value("${arandu.meta.base-url}") String baseUrl,
                           @Value("${arandu.meta.api-key}") String apiKey,
-                          @Value("${arandu.meta.model}") String model) {
+                          @Value("${arandu.meta.model}") String model,
+                          @Value("${arandu.meta.reasoning-effort}") String reasoningEffort,
+                          @Value("${arandu.meta.max-tokens}") int maxTokens) {
         if (apiKey == null || apiKey.isBlank()) {
             return new MockTutorModel();
         }
-        return new OpenAiCompatibleTutorModel(baseUrl, apiKey, model);
+        return new OpenAiCompatibleTutorModel(baseUrl, apiKey, model, reasoningEffort, maxTokens);
     }
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
-                .allowedOrigins(webOrigin)
-                .allowedMethods("GET", "POST", "OPTIONS")
+                .allowedOrigins(webOrigin.split("\\s*,\\s*"))
+                .allowedMethods("GET", "POST", "DELETE", "OPTIONS")
                 .allowedHeaders("*");
     }
 }

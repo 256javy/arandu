@@ -1,12 +1,18 @@
 package org.arandu.api.tutor;
 
 import java.util.List;
+import java.util.Locale;
 
 /** Offline stand-in used when META_API_KEY is empty. */
 public class MockTutorModel implements TutorModel {
 
     @Override
     public String complete(List<Message> messages) {
-        return "Mirá bien las partes de tu barra: ¿te parece que todas tienen el mismo tamaño?";
+        if (messages.getFirst().content().equals(Assessor.SYSTEM)) {
+            String answer = messages.getLast().content().toLowerCase(Locale.ROOT);
+            boolean ok = answer.contains("porque") || answer.contains("mitad") || answer.contains("falta");
+            return "{\"ok\": " + ok + ", \"reason\": \"(mock) busca una razón en la respuesta\"}";
+        }
+        return "Mirá bien lo que hiciste: ¿qué te dice cada parte?";
     }
 }

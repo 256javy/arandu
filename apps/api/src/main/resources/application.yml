@@ -24,4 +24,6 @@ arandu:
   meta:
     base-url: ${META_API_BASE_URL:}
     api-key: ${META_API_KEY:}
-    model: ${META_MODEL:}
+    model: ${META_MODEL:muse-spark-1.3}
+    reasoning-effort: ${META_REASONING_EFFORT:low}
+    max-tokens: ${META_MAX_TOKENS:2000}

@@ -56,6 +56,14 @@ public class Evidence {
         return ok;
     }
 
+    public String getConfidence() {
+        return confidence;
+    }
+
+    public String getSourceExercise() {
+        return sourceExercise;
+    }
+
     public String getDetail() {
         return detail;
     }
