@@ -1,0 +1,6 @@
+# Run outputs stay local; only the latest summary and chart are committed.
+results/*
+!results/latest/
+results/latest/*
+!results/latest/summary.md
+!results/latest/chart.png
