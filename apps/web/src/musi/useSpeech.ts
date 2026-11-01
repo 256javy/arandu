@@ -3,7 +3,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 export function useSpeech() {
   const [muted, setMuted] = useState(false)
   const [speaking, setSpeaking] = useState(false)
-  const activated = useRef(false)
+  // the user may have interacted before this component mounted (e.g. clicking a link)
+  const activated = useRef(typeof navigator !== 'undefined' && !!navigator.userActivation?.hasBeenActive)
   const supported = typeof window !== 'undefined' && 'speechSynthesis' in window
 
   // speech only starts after the first user interaction

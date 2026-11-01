@@ -8,6 +8,7 @@ import { MusiAvatar, type MusiState } from './MusiAvatar'
 export function MusiPanel({
   messages,
   thinking,
+  happy,
   speaking,
   muted,
   speechSupported,
@@ -17,6 +18,7 @@ export function MusiPanel({
 }: {
   messages: HistoryItem[]
   thinking: boolean
+  happy?: boolean
   speaking: boolean
   muted: boolean
   speechSupported: boolean
@@ -26,7 +28,7 @@ export function MusiPanel({
 }) {
   const [text, setText] = useState('')
   const endRef = useRef<HTMLDivElement>(null)
-  const state: MusiState = thinking ? 'thinking' : speaking ? 'talking' : 'idle'
+  const state: MusiState = thinking ? 'thinking' : speaking ? 'talking' : happy ? 'happy' : 'idle'
 
   useEffect(() => {
     endRef.current?.scrollIntoView?.({ block: 'nearest' })
